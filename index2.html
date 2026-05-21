@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Inventory DApp</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #0f172a;
+  color: white;
+  padding: 20px;
+}
+
+.container {
+  max-width: 900px;
+  margin: auto;
+}
+
+.card {
+  background: #1e293b;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+input, button {
+  padding: 10px;
+  margin: 5px;
+  border-radius: 5px;
+  border: none;
+}
+
+button {
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+td, th {
+  padding: 10px;
+  border-bottom: 1px solid #334155;
+}
+
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h2>📦 Inventory DApp Dashboard</h2>
+
+<!-- 🔐 Wallet -->
+<div class="card">
+<h3>Connect Wallet</h3>
+<input id="privateKey" placeholder="Enter Private Key">
+<button onclick="connectWallet()">Connect</button>
+<p id="walletAddress"></p>
+</div>
+
+<!-- ➕ Add Item -->
+<div class="card">
+<h3>Add Inventory Item</h3>
+
+<input id="name" placeholder="Name">
+<input id="image" placeholder="Image URL">
+<input id="price" placeholder="Price">
+<input id="size" placeholder="Size">
+<input id="code" placeholder="Item Code">
+<input id="colour" placeholder="Colour">
+<input id="id" placeholder="ID">
+
+<button onclick="addItem()">Add Item</button>
+<p id="status"></p>
+</div>
+
+<!-- 🔎 Search -->
+<div class="card">
+<h3>Search Item</h3>
+<input id="searchCode" placeholder="Enter Item Code">
+<button onclick="searchItem()">Search</button>
+</div>
+
+<!-- 📦 Inventory Table -->
+<div class="card">
+<h3>All Inventory</h3>
+<button onclick="loadItems()">Refresh</button>
+
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Price</th>
+<th>Size</th>
+<th>Code</th>
+<th>Colour</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+</div>
+
+</div>
+
+<script>
+import { ethers } from "./ether.umd.min.js";
+
+// 🔗 CONFIG
+const provider = new ethers.providers.JsonRpcProvider("https://eth-sepolia.g.alchemy.com/v2pn/aIC4FVlS_hAusqPQkDb");
+const contractAddress = "0x2A941f80c1539C1A97d49a6779922E39DE02C1D4";
+
+// ABI (shortened)
+const abi = [
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_image",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_price",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_size",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_Item_code",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_colour",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_id",
+        "type": "uint256"
+      }
+    ],
+    "name": "addData",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllItems",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "image",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "size",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "item_code",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "colour",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "id",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct StockManager.Item[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "getItem",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "image",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "size",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "item_code",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "colour",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "id",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct StockManager.Item",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getTotalItems",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "items",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "image",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "size",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "item_code",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "colour",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+let wallet, contract;
+
+// 🔐 Connect
+function connectWallet(){
+  const pk = document.getElementById("privateKey").value;
+
+  wallet = new ethers.Wallet(pk, provider);
+  contract = new ethers.Contract(contractAddress, abi, wallet);
+
+  document.getElementById("walletAddress").innerText =
+    "Connected: " + wallet.address;
+}
+
+
+
+
+// ➕ Add Item
+async function addItem(){
+  try{
+    const tx = await contract.addData(
+      name.value,
+      image.value,
+      price.value,
+      size.value,
+      code.value,
+      colour.value,
+      id.value
+    );
+
+    document.getElementById("status").innerText = "⏳ Sending...";
+    await tx.wait();
+
+    document.getElementById("status").innerText = "✅ Added!";
+    loadItems();
+
+  }catch(e){
+    document.getElementById("status").innerText = "❌ Error";
+    console.error(e);
+  }
+}
+
+🔎 Search
+async function searchItem(){
+  const searchCode = document.getElementById("searchCode").value;
+
+  const readContract = new ethers.Contract(contractAddress, abi, provider);
+  const total = await readContract.getTotalItems();
+
+  for(let i=0;i<total;i++){
+    const item = await readContract.getItem(i);
+
+    if(item.item_code === searchCode){
+      alert("Found: " + JSON.stringify(item));
+      return;
+    }
+  }
+
+  alert("Item not found");
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,139 @@
+:root {
+            --glass-bg: rgba(255, 255, 255, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --header-blue: #e3f2fd;
+            --accent-blue: #007bff;
+            --text-main: #212529;
+            --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+        }
+
+        body { 
+            background: #ffffff; 
+            background-image: radial-gradient(circle at 50% 50%, #f8fbff 0%, #ffffff 100%);
+            color: var(--text-main); 
+            font-family: 'Courier New', monospace; 
+            margin: 0; 
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .shop-header {
+            padding: 20px 5%;
+            background: var(--header-blue);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #d0e3f0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo { height: 45px; }
+
+        .status-info h1 { margin: 0; font-size: 1.1rem; color: #0056b3; }
+
+        .cart-link { 
+            margin-left: auto; 
+            color: var(--accent-blue); 
+            text-decoration: none; 
+            font-size: 0.75rem; 
+            border: 1px solid var(--accent-blue); 
+            padding: 8px 12px; 
+            border-radius: 4px;
+        }
+
+        .container { flex: 1; max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+
+        .product-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 30px; 
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+        }
+
+        .slider-viewport { 
+            width: 100%; 
+            aspect-ratio: 1 / 1; 
+            background: rgba(255,255,255,0.5);
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            overflow: hidden; 
+            position: relative; 
+        }
+
+        .slider-wrapper { display: flex; height: 100%; }
+        .slider-item { min-width: 100%; display: flex; align-items: center; justify-content: center; }
+        .slider-item img { max-width: 90%; max-height: 90%; object-fit: contain; }
+
+        .price-tag { font-size: 2rem; color: #1e7e34; margin: 15px 0; font-weight: bold; }
+        
+        /* Bulk Config Styles */
+        .config-container {
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .unit-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .unit-row:last-child { border: none; }
+
+        select, input { 
+            width: 100%; 
+            background: #fff; 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            border-radius: 5px; 
+            font-family: inherit; 
+            font-size: 0.8rem;
+        }
+
+        .buy-button { 
+            width: 100%; 
+            padding: 18px; 
+            background: var(--accent-blue); 
+            color: #fff; 
+            border: none; 
+            border-radius: 10px;
+            font-weight: bold; 
+            text-transform: uppercase;
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+
+        .buy-button:hover { background: #0056b3; transform: scale(1.01); }
+
+        .shop-footer {
+            padding: 30px 0;
+            text-align: center;
+            background: var(--header-blue);
+            color: #666;
+            font-size: 0.7rem;
+        }
+
+        @media (max-width: 900px) { .product-grid { grid-template-columns: 1fr; } }

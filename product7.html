@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details | KHOZA.IO</title>
+    <!-- Dependencies: Ethers 6.x and GSAP Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <!-- Internal Logic Dependencies -->
+    <script src="cart-logic.js"></script>
+    <style>
+        body { background: #000; color: #00f2ff; font-family: 'Courier New', monospace; margin: 0; padding: 20px; }
+        .container { max-width: 950px; margin: 0 auto; background: #111; border: 1px solid #00f2ff; padding: 30px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,242,255,0.1); }
+        .back-btn { color: #00f2ff; text-decoration: none; font-size: 0.9rem; border: 1px solid #00f2ff; padding: 5px 10px; border-radius: 4px; transition: 0.3s; display: inline-block; margin-bottom: 20px; }
+        .back-btn:hover { background: #00f2ff; color: #000; }
+        
+        .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+        
+        /* GSAP Slider Architecture */
+        .slider-viewport { 
+            width: 100%; 
+            aspect-ratio: 1 / 1; 
+            border: 1px dashed #00f2ff; 
+            background: #050505; 
+            overflow: hidden;
+            position: relative;
+        }
+        .slider-wrapper { display: flex; height: 100%; }
+        .slider-item { 
+            min-width: 100%; 
+            height: 100%;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            color: #444;
+            font-size: 0.8rem;
+        }
+        .slider-item img { max-width: 90%; max-height: 90%; object-fit: contain; filter: drop-shadow(0 0 10px #00f2ff55); }
+
+        .slider-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; background: #000; padding: 5px; border: 1px solid #333; }
+        .nav-btn { background: none; border: 1px solid #00f2ff; color: #00f2ff; padding: 4px 12px; cursor: pointer; font-family: 'Courier New'; font-size: 0.7rem; transition: 0.2s; }
+        .nav-btn:hover { background: #00f2ff; color: #000; }
+
+        /* Info & Selection Styling */
+        h1 { margin: 0; text-transform: uppercase; letter-spacing: 2px; color: #fff; font-size: 1.8rem; }
+        .price-tag { font-size: 2.2rem; color: #00ff88; margin: 15px 0; font-weight: bold; }
+        .meta { color: #888; font-size: 0.85rem; margin-bottom: 8px; }
+        .label { color: #00f2ff; font-weight: bold; }
+        
+        .quote-box { background: #000; border: 1px solid #333; padding: 15px; margin-top: 20px; }
+        label { display: block; font-size: 0.7rem; color: #00f2ff; margin-bottom: 5px; margin-top: 10px; }
+        select, input { width: 100%; background: #111; border: 1px solid #444; color: #fff; padding: 8px; font-family: 'Courier New'; box-sizing: border-box; }
+        
+        .quote-result { margin-top: 15px; border-top: 1px dashed #333; padding-top: 10px; }
+        .quote-row { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px; }
+
+        .buy-button { width: 100%; padding: 18px; background: #00f2ff; color: #000; border: none; font-weight: bold; font-size: 1.1rem; cursor: pointer; margin-top: 20px; transition: 0.4s; }
+        .buy-button:hover { background: #fff; box-shadow: 0 0 20px #00f2ff; }
+
+        #debugWindow { margin-top: 30px; background: #000; border: 1px solid #333; padding: 15px; font-size: 0.75rem; color: #666; max-height: 100px; overflow-y: auto; }
+        
+        @media (max-width: 768px) { .product-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <a href="shop.html" class="back-btn"><- RETURN TO MARKETPLACE</a>
+        
+        <div id="productDetail">
+            <p>> INITIALIZING LEDGER CONNECTION...</p>
+        </div>
+
+        <div id="debugWindow">> SYSTEM_READY: Waiting for instruction...</div>
+    </div>
+
+    <script>
+        const RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+        const CONTRACT_ADDRESS = "0x0E763c0d3bCdFa4f744B9DE3355B67B3A9b262Ba";
+        const GATEWAY = "https://gateway.pinata.cloud/ipfs/";
+        
+        let currentPrice = 0;
+        let currentIndex = 0;
+        let totalImages = 0;
+
+        const ABI = [
+            {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"products","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"admin","type":"address"},{"internalType":"string","name":"itemCode","type":"string"},{"internalType":"string","name":"itemName","type":"string"},{"internalType":"uint256","name":"retailPrice","type":"uint256"},{"internalType":"uint256","name":"stockPrice","type":"uint256"},{"internalType":"string","name":"colour","type":"string"},{"internalType":"uint256","name":"quantityAvailable","type":"uint256"},{"internalType":"uint256","name":"totalSold","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"_pId","type":"uint256"}],"name":"getProductImages","outputs":[{"internalType":"string[]","name":"","type":"string[]"}],"stateMutability":"view","type":"function"}
+        ];
+
+        function log(msg) {
+            const win = document.getElementById('debugWindow');
+            win.innerHTML += `<div>> ${msg}</div>`;
+            win.scrollTop = win.scrollHeight;
+        }
+
+        async function loadDetails() {
+            const display = document.getElementById('productDetail');
+            const productId = localStorage.getItem("selected_product_id");
+
+            if (!productId) {
+                display.innerHTML = "<h2>ERROR: NO PRODUCT_ID DETECTED</h2>";
+                return;
+            }
+
+            try {
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+
+                const [p, rawImages] = await Promise.all([
+                    contract.products(productId),
+                    contract.getProductImages(productId)
+                ]);
+
+                currentPrice = Number(p.retailPrice);
+                const images = rawImages.filter(img => img && img !== "").map(img => 
+                    img.startsWith('http') ? img : `${GATEWAY}${img}`
+                );
+                totalImages = images.length;
+
+                display.innerHTML = `
+                    <div class="product-grid">
+                        <div class="slider-section">
+                            <div class="slider-viewport">
+                                <div class="slider-wrapper" id="sliderWrapper">
+                                    ${totalImages > 0 
+                                        ? images.map(src => `<div class="slider-item"><img src="${src}"></div>`).join('')
+                                        : '<div class="slider-item">NO SCHEMATIC FOUND IN LEDGER</div>'}
+                                </div>
+                            </div>
+                            ${totalImages > 1 ? `
+                            <div class="slider-nav">
+                                <button class="nav-btn" onclick="moveSlider(-1)">PREV_LAYER</button>
+                                <span id="imgCounter" style="font-size:0.65rem">IMAGE: 01 / ${totalImages.toString().padStart(2, '0')}</span>
+                                <button class="nav-btn" onclick="moveSlider(1)">NEXT_LAYER</button>
+                            </div>` : ''}
+                        </div>
+
+                        <div class="product-info">
+                            <p class="meta"><span class="label">REF_CODE:</span> ${p.itemCode}</p>
+                            <h1>${p.itemName}</h1>
+                            <div class="price-tag">R${currentPrice.toLocaleString()}</div>
+                            
+                            <div class="quote-box">
+                                <label>SELECT SIZE:</label>
+                                <select id="itemSize" onchange="updateSubtotal()">
+                                    <option value="S">Small (S)</option><option value="M">Medium (M)</option>
+                                    <option value="L">Large (L)</option><option value="XL">Extra Large (XL)</option>
+                                </select>
+
+                                <label>SELECT COLOUR:</label>
+                                <select id="itemColor" onchange="updateSubtotal()">
+                                    <option value="Black">Black</option><option value="White">White</option>
+                                    <option value="Navy">Navy Blue</option><option value="Grey">Heather Grey</option>
+                                </select>
+
+                                <label>DELIVERY LOCATION:</label>
+                                <select id="location" onchange="updateSubtotal()">
+                                    <option value="Standard">Standard (General SA)</option>
+                                    <option value="Durban CBD">Durban CBD</option>
+                                    <option value="Parlock">Parlock</option>
+                                    <option value="Pinetown">Pinetown</option>
+                                </select>
+
+                                <label>ORDER QUANTITY:</label>
+                                <input type="number" id="qtyInput" value="1" min="1" max="${p.quantityAvailable.toString()}" oninput="updateSubtotal()">
+
+                                <div class="quote-result">
+                                    <div class="quote-row"><span>Subtotal:</span><span id="itemSubtotal">R 0.00</span></div>
+                                    <div class="quote-row"><span>Shipping:</span><span id="shippingFee">R 0.00</span></div>
+                                    <div class="quote-row"><strong>Final Total:</strong><span id="itemTotal">R 0.00</span></div>
+                                </div>
+                            </div>
+
+                            <button class="buy-button" onclick="prepareAddToCart('${productId}', '${p.itemName}', '${images[0] || ''}')">
+                                EXECUTE_ADD_TO_CART
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                updateSubtotal();
+                log(`Product Node ${p.itemName} Loaded.`);
+            } catch (err) {
+                log("Ledger Sync Failure: " + err.message);
+                display.innerHTML = "<p>> FATAL ERROR: CONNECTION INTERRUPTED</p>";
+            }
+        }
+
+        function moveSlider(direction) {
+            currentIndex += direction;
+            if (currentIndex < 0) currentIndex = totalImages - 1;
+            if (currentIndex >= totalImages) currentIndex = 0;
+
+            gsap.to("#sliderWrapper", {
+                xPercent: -100 * currentIndex,
+                duration: 0.4,
+                ease: "power2.out"
+            });
+
+            document.getElementById('imgCounter').innerText = `IMAGE: ${(currentIndex + 1).toString().padStart(2, '0')} / ${totalImages.toString().padStart(2, '0')}`;
+        }
+
+        function updateSubtotal() {
+            const qty = parseInt(document.getElementById('qtyInput').value) || 0;
+            const loc = document.getElementById('location').value;
+            
+            const rates = {
+                "Durban CBD": [40, 60, 100, 180],
+                "Parlock": [50, 70, 110, 190],
+                "Pinetown": [70, 100, 170, 230],
+                "Standard": [60, 100, 180, 240]
+            };
+            
+            const selected = rates[loc] || rates["Standard"];
+            let ship = selected[3];
+            if (qty >= 1 && qty <= 4) ship = selected[0];
+            else if (qty >= 5 && qty <= 10) ship = selected[1];
+            else if (qty >= 11 && qty <= 20) ship = selected[2];
+
+            const sub = currentPrice * qty;
+            const total = sub + ship;
+
+            document.getElementById('itemSubtotal').innerText = `R ${sub.toLocaleString()}`;
+            document.getElementById('shippingFee').innerText = `R ${ship.toLocaleString()}`;
+            document.getElementById('itemTotal').innerText = `R ${total.toLocaleString()}`;
+            
+            return { sub, ship, total };
+        }
+
+        function prepareAddToCart(id, name, img) {
+            const qty = parseInt(document.getElementById('qtyInput').value) || 1;
+            const loc = document.getElementById('location').value;
+            const variant = `Size: ${document.getElementById('itemSize').value}, Color: ${document.getElementById('itemColor').value}`;
+            const totals = updateSubtotal();
+
+            const item = {
+                id: id,
+                name: name,
+                price: currentPrice,
+                image: img,
+                quantity: qty,
+                location: `${loc} (${variant})`,
+                shipping: totals.ship,
+                itemTotal: totals.total
+            };
+
+            if (typeof addToCart === 'function') {
+                addToCart(item); // From cart-logic.js[cite: 11]
+                log("Node Item Added to Cart.", "success");
+            } else {
+                log("Error: cart-logic.js not loaded.", "error");
+            }
+        }
+
+        window.onload = loadDetails;
+    </script>
+</body>
+</html>

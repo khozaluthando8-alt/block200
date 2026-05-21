@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Node | KHOZA.IO</title>
+    <link rel="stylesheet" href="style2.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <!-- External Logic Files -->
+    <script src="marketplace-logic.js"></script>
+    <script src="cart-logic.js"></script>
+</head>
+<body class="product-page-body">
+
+    <header class="shop-header">
+        <div class="header-content">
+            <a href="shop.html" class="back-link">
+                <img src="301015489_443828151102927_1957794053294967618_n.png" alt="Logo" class="logo">
+            </a>
+            <div class="status-info">
+                <h1>Product Details</h1>
+                <p id="connectionStatus">Syncing with Ledger...</p>
+            </div>
+            <div class="cart-nav">
+                <button onclick="window.location.href='cart.html'" class="cart-btn">
+                    VIEW CART <span id="cartCount">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="product-view-container">
+        <div id="productDetail" class="product-glass-layout">
+            <div class="loader">Decrypting Node Data...</div>
+        </div>
+    </main>
+
+    <script>
+        let currentPrice = 0; 
+        const localFallback = "301015489_443828151102927_1957794053294967618_n.png";
+
+        async function loadDetails() {
+            const display = document.getElementById('productDetail');
+            const productId = localStorage.getItem("selected_product_id");
+
+            if (!productId) {
+                display.innerHTML = "<h2>Error: No Product Selected</h2>";
+                return;
+            }
+
+            try {
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+
+                // Fetch data and images from contract[cite: 7]
+                const p = await contract.products(productId);
+                const images = await contract.getProductImages(productId);
+                
+                currentPrice = Number(p.retailPrice); 
+
+                const displayImg = (images && images.length > 0 && images[0] !== "") 
+                    ? images[0] 
+                    : localFallback;
+
+                display.innerHTML = `
+                    <div class="product-grid">
+                        <div class="product-image">
+                            <img src="${displayImg}" alt="${p.itemName}" onerror="this.src='${localFallback}'">
+                        </div>
+                        <div class="product-info">
+                            <p class="meta">REF_CODE: ${p.itemCode}</p>
+                            <h1>${p.itemName}</h1>
+                            <div class="price-tag">R${currentPrice.toLocaleString()}</div>
+                            <p class="meta">STATUS: <span class="stock-status">${p.quantityAvailable.toString()} UNITS IN STOCK</span></p>
+                            
+                            <div class="quote-box">
+                                <label>SELECT SIZE:</label>
+                                <select id="itemSize" onchange="updateSubtotal()">
+                                    <option value="S">Small (S)</option>
+                                    <option value="M">Medium (M)</option>
+                                    <option value="L">Large (L)</option>
+                                    <option value="XL">Extra Large (XL)</option>
+                                </select>
+
+                                <label>SELECT COLOUR:</label>
+                                <select id="itemColor" onchange="updateSubtotal()">
+                                    <option value="Black">Black</option>
+                                    <option value="White">White</option>
+                                    <option value="Navy">Navy Blue</option>
+                                    <option value="Grey">Heather Grey</option>
+                                </select>
+
+                                <label>DELIVERY LOCATION:</label>
+                                <select id="location" onchange="updateSubtotal()">
+                                    <option value="Standard">Standard (General)</option>
+                                    <option value="Durban CBD">Durban CBD</option>
+                                    <option value="Parlock">Parlock</option>
+                                    <option value="Pinetown">Pinetown</option>
+                                </select>
+
+                                <label>ORDER QUANTITY:</label>
+                                <input type="number" id="qtyInput" value="1" min="1" max="${p.quantityAvailable.toString()}" oninput="updateSubtotal()">
+
+                                <div class="quote-result">
+                                    <div class="quote-row"><span>Subtotal:</span><span id="itemSubtotal">R 0.00</span></div>
+                                    <div class="quote-row"><span>Shipping:</span><span id="shippingFee">R 0.00</span></div>
+                                    <div class="quote-row"><strong>Total:</strong><span id="itemTotal">R 0.00</span></div>
+                                </div>
+                            </div>
+
+                            <button class="buy-button" onclick="prepareAddToCart(${productId}, '${p.itemName}', '${displayImg}')">
+                                ADD TO NODE CART
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                updateSubtotal();
+                updateCartBadge();
+            } catch (err) {
+                console.error("Ledger Error:", err);
+                display.innerHTML = "<p>Connection to Ledger Failed.</p>";
+            }
+        }
+
+        function calculateShipping(qty, location) {
+            let shipping = 0;
+            if (location === "Durban CBD") {
+                if (qty >= 1 && qty <= 4) shipping = 40;
+                else if (qty >= 5 && qty <= 10) shipping = 60;
+                else if (qty >= 11 && qty <= 20) shipping = 100;
+                else if (qty >= 21) shipping = 180;
+            } 
+            else if (location === "Standard") {
+                if (qty >= 1 && qty <= 4) shipping = 60;
+                else if (qty >= 5 && qty <= 10) shipping = 100;
+                else if (qty >= 11 && qty <= 20) shipping = 180;
+                else if (qty >= 21) shipping = 240;
+            } 
+            else if (location === "Parlock") {
+                if (qty >= 1 && qty <= 4) shipping = 50;
+                else if (qty >= 5 && qty <= 10) shipping = 70;
+                else if (qty >= 11 && qty <= 20) shipping = 110;
+                else if (qty >= 21) shipping = 190;
+            } 
+            else if (location === "Pinetown") {
+                if (qty >= 1 && qty <= 4) shipping = 70;
+                else if (qty >= 5 && qty <= 10) shipping = 100;
+                else if (qty >= 11 && qty <= 20) shipping = 170;
+                else if (qty >= 21) shipping = 230;
+            }
+            return shipping;
+        }
+
+        function updateSubtotal() {
+    const qtyInput = document.getElementById('qtyInput');
+    const locationInput = document.getElementById('location');
+    
+    if(!qtyInput || !locationInput) return;
+
+    const qty = parseInt(qtyInput.value) || 0;
+    const location = locationInput.value;
+    
+    // Determine the active price: Stock Price if Qty > 2, else Retail Price
+    const activePrice = (qty > 2) ? currentStockPrice : currentPrice;
+    
+    const shipping = calculateShipping(qty, location);
+    const subtotal = activePrice * qty;
+    const total = subtotal + shipping;
+
+    // Update UI labels to show which price is being used
+    const priceLabel = (qty > 2) ? "STOCK PRICE APPLIED" : "RETAIL PRICE";
+    document.getElementById('itemSubtotal').innerText = `R ${subtotal.toLocaleString()}`;
+    document.getElementById('shippingFee').innerText = `R ${shipping.toLocaleString()}`;
+    document.getElementById('itemTotal').innerText = `R ${total.toLocaleString()}`;
+    
+    return { subtotal, shipping, total, activePrice };
+}
+
+function prepareAddToCart(id, name, img) {
+    const qty = parseInt(document.getElementById('qtyInput').value) || 1;
+    const location = document.getElementById('location').value;
+    const size = document.getElementById('itemSize').value;
+    const color = document.getElementById('itemColor').value;
+    const totals = updateSubtotal(); 
+
+    const variantInfo = `Size: ${size}, Color: ${color}`;
+
+    const cartItem = {
+        id: id.toString(),
+        name: name,
+        price: totals.activePrice, // Saves the discounted price if applicable
+        image: img,
+        quantity: qty,
+        location: `${location} (${variantInfo})`,
+        variants: variantInfo,
+        shipping: totals.shipping, 
+        itemTotal: totals.total
+    };
+
+    addToCart(cartItem); 
+    updateCartBadge();
+    alert(`${name} added at ${qty > 2 ? 'Bulk Rate' : 'Retail Rate'}.`);[cite: 8]
+}
+
+        function updateCartBadge() {
+            const cart = getCart();
+            const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+            const badge = document.getElementById('cartCount');
+            if(badge) badge.innerText = count;
+        }
+
+        window.onload = loadDetails;
+    </script>
+</body>
+</html>

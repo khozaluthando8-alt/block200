@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KHOZA.IO - Admin Registration</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        body { background: #0a0a0a; color: #00f2ff; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1a1a1a; padding: 2rem; border: 1px solid #00f2ff; box-shadow: 0 0 15px #00f2ff66; border-radius: 8px; width: 350px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; background: #000; border: 1px solid #333; color: #fff; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #00f2ff; border: none; color: #000; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #008c9e; }
+        #status { margin-top: 15px; font-size: 0.8rem; color: #aaa; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Admin Access</h2>
+    <input type="email" id="email" placeholder="Email Address" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <hr style="border: 0.5px solid #333; margin: 20px 0;">
+    <input type="text" id="storeName" placeholder="Store Name">
+    <input type="text" id="bankName" placeholder="Bank Name">
+    <input type="text" id="accHolder" placeholder="Account Holder">
+    <input type="text" id="accNum" placeholder="Account Number">
+    <button onclick="handleRegistration()">Register on Testnet</button>
+    <div id="status">Ready...</div>
+</div>
+
+<script>
+    // Configuration - Replace with your deployed contract address and ABI
+    const CONTRACT_ADDRESS = "0x4224060c31aDB8236D8d1e5C1573f989614A25cF";
+    const RPC_URL = "https://eth-sepolia.g.alchemy.com/v2/apnIC4FVlS_hAusqPQkDb"; // Using Sepolia Testnet
+    
+    // Minimal ABI based on your cfw.sol source 
+    const ABI = [
+        "abi2.json"
+    ];
+
+    async function handleRegistration() {
+        const status = document.getElementById('status');
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('password').value;
+        
+        if(!email || !pass) return alert("Email/Password required");
+
+        try {
+            status.innerText = "Generating Virtual Wallet...";
+            
+            // 1. Create a deterministic private key from Email + Password
+            // This ensures the same email/pass always generates the same wallet
+            const salt = "KHOZA_LOGISTICS_SALT_2026";
+            const secret = ethers.id(email + pass + salt); 
+            const provider = new ethers.JsonRpcProvider(RPC_URL);
+            const wallet = new ethers.Wallet(secret, provider);
+
+            status.innerText = `Wallet: ${wallet.address.substring(0, 10)}... (Checking Balance)`;
+
+            // 2. Check for gas (The virtual wallet needs testnet ETH)
+            const balance = await provider.getBalance(wallet.address);
+            if (balance < ethers.parseEther("0.001")) {
+                status.innerText = "Error: Virtual wallet has no ETH for gas. Please fund: " + wallet.address;
+                return;
+            }
+
+            // 3. Connect to Contract 
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, wallet);
+            
+            status.innerText = "Sending Transaction to Testnet...";
+            const tx = await contract.registerAdmin(
+                document.getElementById('storeName').value,
+                document.getElementById('bankName').value,
+                document.getElementById('accHolder').value,
+                document.getElementById('accNum').value
+            );
+
+            status.innerText = "Mining Transaction...";
+            await tx.wait();
+
+            status.innerText = "Registration Successful!";
+            console.log("Tx Hash:", tx.hash);
+
+        } catch (error) {
+            console.error(error);
+            status.innerText = "Error: " + error.reason || error.message;
+        }
+    }
+</script>
+</body>
+</html>

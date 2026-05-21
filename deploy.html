@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hardcoded Contract Deployer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body style="font-family: sans-serif; padding: 20px;">
+
+    <h2>🚀 Khoza Logistics Deployer</h2>
+    <p>Status: <span id="status">Ready</span></p>
+    <button id="deployBtn" style="padding: 10px 20px; cursor: pointer;">Deploy Contract</button>
+    
+    <div id="result" style="margin-top: 20px; color: green; font-weight: bold;"></div>
+
+    <script>
+        // 1. HARDCODED CONFIGURATION
+        const RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com"; 
+        const PRIVATE_KEY = "0xYOUR_PRIVATE_KEY_HERE"; // WARNING: Keep this secret!
+        
+        // 2. CONTRACT DATA (Example: Simple KhozaLogistics)
+        const ABI = [ "constructor()" ]; // Add your full ABI array here
+        const BYTECODE = "0x6080604052348015610010..."; // Paste your full Bytecode string here
+
+        async function deployContract() {
+            const status = document.getElementById('status');
+            const result = document.getElementById('result');
+            const btn = document.getElementById('deployBtn');
+
+            try {
+                status.innerText = "Connecting to network...";
+                btn.disabled = true;
+
+                // 3. INITIALIZE PROVIDER AND WALLET
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+
+                status.innerText = "Preparing Transaction...";
+
+                // 4. CREATE CONTRACT FACTORY
+                const factory = new ethers.ContractFactory(ABI, BYTECODE, wallet);
+
+                status.innerText = "Deploying to Blockchain (Waiting for confirmation)...";
+                
+                // 5. DEPLOY
+                const contract = await factory.deploy();
+                
+                // Wait for the transaction to be mined (1 block)
+                await contract.waitForDeployment();
+
+                const address = await contract.getAddress();
+                
+                status.innerText = "Success!";
+                result.innerHTML = `Contract Deployed At: <br> ${address}`;
+                console.log("Deployed to:", address);
+
+            } catch (error) {
+                console.error(error);
+                status.innerText = "Error: " + error.message;
+                btn.disabled = false;
+            }
+        }
+
+        document.getElementById('deployBtn').addEventListener('click', deployContract);
+    </script>
+</body>
+</html>

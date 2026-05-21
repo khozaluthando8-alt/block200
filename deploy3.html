@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KHOZA.IO | Blockchain Toolkit</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <script src="https://binaries.soliditylang.org/bin/soljson-v0.8.20+commit.a1b7d46c.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/solc-browserified@latest/dist/solc.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-solidity.min.js"></script>
+
+    <style>
+        :root { --accent: #ffcc00; --bg: #121212; --card: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; padding: 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        /* Editor Styles */
+        .editor-container { position: relative; height: 500px; background: #000; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+        #editing, #highlighting { margin: 0; padding: 15px; width: 100%; height: 100%; position: absolute; top: 0; left: 0; font-family: monospace; font-size: 12pt; white-space: pre; overflow: auto; box-sizing: border-box; }
+        #editing { z-index: 1; background: transparent; color: transparent; caret-color: white; resize: none; border: none; outline: none; }
+        #highlighting { z-index: 0; pointer-events: none; }
+        
+        /* UI Components */
+        .panel { background: var(--card); padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        button { background: var(--accent); color: black; border: none; padding: 12px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%; margin-bottom: 10px; }
+        button:disabled { background: #555; }
+        input { width: 100%; padding: 10px; background: #000; border: 1px solid #444; color: white; margin-bottom: 15px; border-radius: 4px; box-sizing: border-box; }
+        
+        .output-box { background: #000; padding: 10px; border: 1px solid #444; font-family: monospace; font-size: 10pt; height: 80px; overflow-y: auto; margin-bottom: 10px; white-space: pre-wrap; color: #00ff00; }
+        .error-log { color: #ff4444; background: #2a0a0a; border: 1px solid #ff4444; height: 120px; }
+        h3 { color: var(--accent); margin-top: 0; }
+    </style>
+</head>
+<body>
+
+    <h2 style="text-align:center;">📦 KHOZA.IO Smart Contract Factory</h2>
+
+    <div class="grid">
+        <div class="panel">
+            <h3>1. Write Contract</h3>
+            <div class="editor-container">
+                <textarea id="editing" spellcheck="false" oninput="updateSyntax();" onscroll="syncScroll();">// Paste your cfw8.sol code here...</textarea>
+                <pre id="highlighting" aria-hidden="true"><code class="language-solidity" id="highlighting-content"></code></pre>
+            </div>
+            <button onclick="compileCode()" id="compileBtn">🛠️ Compile Contract</button>
+            <div id="errorLog" class="output-box error-log">Compiler messages will appear here...</div>
+        </div>
+
+        <div class="panel">
+            <h3>2. Deploy to HOODIE Network</h3>
+            <label>HOODIE RPC URL</label>
+            <input type="text" id="rpcUrl" value="https://rpc.hoodie-testnet.io">
+            
+            <label>Private Key</label>
+            <input type="password" id="privKey" placeholder="0x...">
+
+            <button onclick="deployContract()" id="deployBtn" disabled>🚀 Deploy to Chain</button>
+            
+            <hr style="border: 0.5px solid #333; margin: 20px 0;">
+
+            <h3>3. Deployment Assets</h3>
+            <label>Contract ABI (Copy for your JS files)</label>
+            <div id="abiOut" class="output-box">No ABI generated yet.</div>
+            
+            <label>Bytecode</label>
+            <div id="bytecodeOut" class="output-box">No Bytecode generated yet.</div>
+
+            <label>Deployed Address</label>
+            <div id="addressOut" class="output-box" style="height: 30px; font-weight: bold; color: var(--accent);">Not deployed.</div>
+        </div>
+    </div>
+
+<script>
+    let globalABI = null;
+    let globalBytecode = null;
+
+    // --- SYNTAX HIGHLIGHTING LOGIC ---
+    function updateSyntax() {
+        let text = document.getElementById("editing").value;
+        let result_element = document.getElementById("highlighting-content");
+        result_element.textContent = text;
+        Prism.highlightElement(result_element);
+    }
+
+    function syncScroll() {
+        let element = document.getElementById("editing");
+        let highlighting = document.getElementById("highlighting");
+        highlighting.scrollTop = element.scrollTop;
+        highlighting.scrollLeft = element.scrollLeft;
+    }
+
+    // --- COMPILER LOGIC ---
+    async function compileCode() {
+        const status = document.getElementById('errorLog');
+        const code = document.getElementById('editing').value;
+        status.innerText = "Compiling... please wait.";
+        
+        const input = {
+            language: 'Solidity',
+            sources: { 'Contract.sol': { content: code } },
+            settings: { outputSelection: { '*': { '*': ['*'] } } }
+        };
+
+        try {
+            const output = JSON.parse(window.soljson.compile(JSON.stringify(input)));
+            status.innerText = "";
+
+            if (output.errors) {
+                let fatal = false;
+                output.errors.forEach(err => {
+                    status.innerText += err.formattedMessage + "\n";
+                    if (err.severity === 'error') fatal = true;
+                });
+                if (fatal) return;
+            }
+
+            const contractName = Object.keys(output.contracts['Contract.sol'])[0];
+            const contractData = output.contracts['Contract.sol'][contractName];
+
+            globalABI = contractData.abi;
+            globalBytecode = "0x" + contractData.evm.bytecode.object;
+
+            document.getElementById('abiOut').innerText = JSON.stringify(globalABI);
+            document.getElementById('bytecodeOut').innerText = globalBytecode;
+            document.getElementById('deployBtn').disabled = false;
+            
+            status.innerText = "Successfully Compiled: " + contractName;
+        } catch (e) {
+            status.innerText = "Compiler Error: " + e.message;
+        }
+    }
+
+    // --- DEPLOYMENT LOGIC ---
+    async function deployContract() {
+        const rpc = document.getElementById('rpcUrl').value;
+        const key = document.getElementById('privKey').value;
+        const status = document.getElementById('errorLog');
+        const addrOut = document.getElementById('addressOut');
+
+        if(!key) { alert("Enter Private Key"); return; }
+
+        try {
+            status.innerText = "Connecting to HOODIE...";
+            const provider = new ethers.JsonRpcProvider(rpc);
+            const wallet = new ethers.Wallet(key, provider);
+            
+            const factory = new ethers.ContractFactory(globalABI, globalBytecode, wallet);
+            
+            status.innerText = "Deploying... Waiting for block confirmation.";
+            const contract = await factory.deploy();
+            await contract.waitForDeployment();
+
+            const address = await contract.getAddress();
+            addrOut.innerText = address;
+            status.innerText = "🎉 Deployment Complete!";
+            console.log("Deployed at:", address);
+        } catch (e) {
+            status.innerText = "Deployment Failed: " + e.message;
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KHOZA.IO Online Compiler</title>
+    <script src="https://binaries.soliditylang.org/bin/soljson-v0.8.20+commit.a1b7d46c.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; padding: 20px; }
+        textarea { width: 100%; height: 300px; background: #1e1e1e; color: #00ff00; border: 1px solid #444; }
+        .output-box { background: #000; padding: 10px; margin-top: 10px; border: 1px solid #ffcc00; word-break: break-all; }
+        button { background: #ffcc00; padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>🛠️ KHOZA.IO Solidity Compiler</h2>
+    <p>Paste your <code>.sol</code> code below to generate deployment data.</p>
+    
+    <textarea id="contractCode" placeholder="// Paste Solidity code here...">
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract SimpleStorage {
+    uint256 public data;
+    function set(uint256 _data) public { data = _data; }
+}
+    </textarea>
+
+    <br><br>
+    <button onclick="compileCode()">Compile to ABI & Bytecode</button>
+
+    <div id="status"></div>
+
+    <h3>📦 Bytecode</h3>
+    <div id="bytecodeOut" class="output-box">Waiting...</div>
+
+    <h3>📋 ABI</h3>
+    <div id="abiOut" class="output-box">Waiting...</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/solc-browserified@latest/dist/solc.min.js"></script>
+
+    <script>
+        async function compileCode() {
+            const status = document.getElementById('status');
+            const code = document.getElementById('contractCode').value;
+            
+            status.innerText = "Compiling... Please wait (this can take 10 seconds)";
+
+            // Initialize solc
+            // Note: In a production app, use a Web Worker for better performance
+            const solc = window.Solc;
+            
+            const input = {
+                language: 'Solidity',
+                sources: { 'Contract.sol': { content: code } },
+                settings: { outputSelection: { '*': { '*': ['*'] } } }
+            };
+
+            try {
+                // Compile the code using the global Module provided by the CDN script
+                const output = JSON.parse(window.soljson.compile(JSON.stringify(input)));
+                
+                // Navigate through JSON to find the contract
+                const contractName = Object.keys(output.contracts['Contract.sol'])[0];
+                const contractData = output.contracts['Contract.sol'][contractName];
+
+                // Display Results
+                document.getElementById('bytecodeOut').innerText = "0x" + contractData.evm.bytecode.object;
+                document.getElementById('abiOut').innerText = JSON.stringify(contractData.abi);
+                
+                status.innerText = "Compilation Successful!";
+            } catch (e) {
+                console.error(e);
+                status.innerText = "Error during compilation. Check console.";
+            }
+        }
+    </script>
+</body>
+</html>

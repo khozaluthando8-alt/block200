@@ -1,0 +1,106 @@
+/* Core Variables */
+:root {
+    --glass-blue: rgba(173, 216, 230, 0.7); /* Light blue for header/footer */
+    --glass-border: rgba(255, 255, 255, 0.4);
+    --body-white: #ffffff;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--body-white); /* Body is white as requested */
+    color: #333;
+    overflow-x: hidden;
+}
+
+/* 3D Container Setup */
+.marketplace-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 30px;
+    padding: 100px 5%;
+    perspective: 1000px; /* Essential for 3D rotation */
+}
+
+/* Header & Footer Glassmorphism */
+.shop-header, .shop-footer {
+    background: var(--glass-blue);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid var(--glass-border);
+    padding: 15px 5%;
+    display: flex;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.shop-footer {
+    position: relative;
+    justify-content: center;
+    margin-top: 50px;
+}
+
+/* Logo Styling */
+.logo {
+    height: 60px;
+    margin-right: 20px;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+}
+
+/* 3D Product Cards */
+.product-card {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    transition: box-shadow 0.3s ease;
+    transform-style: preserve-3d; /* Allows internal elements to float in 3D */
+}
+
+.product-card:hover {
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.product-card img {
+    width: 100%;
+    border-radius: 15px;
+    transform: translateZ(30px); /* Makes the image "pop" out of the card */
+    margin-bottom: 15px;
+}
+
+.product-card h3 {
+    margin: 10px 0;
+    transform: translateZ(20px);
+}
+
+.product-card button {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    transform: translateZ(10px);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .marketplace-grid {
+        grid-template-columns: 1fr;
+        padding: 40px 20px;
+    }
+    
+    .logo {
+        height: 45px;
+    }
+    
+    h1 {
+        font-size: 1.2rem;
+    }
+}

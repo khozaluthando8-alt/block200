@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Configuration | KHOZA.IO</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <script src="cart-logic.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --header-blue: #e3f2fd;
+            --accent-blue: #007bff;
+            --text-main: #212529;
+            --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+        }
+
+        body { 
+            background: #ffffff; 
+            background-image: radial-gradient(circle at 50% 50%, #f8fbff 0%, #ffffff 100%);
+            color: var(--text-main); 
+            font-family: 'Courier New', monospace; 
+            margin: 0; 
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .shop-header {
+            padding: 20px 5%;
+            background: var(--header-blue);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #d0e3f0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo { height: 45px; }
+
+        .status-info h1 { margin: 0; font-size: 1.1rem; color: #0056b3; }
+
+        .cart-link { 
+            margin-left: auto; 
+            color: var(--accent-blue); 
+            text-decoration: none; 
+            font-size: 0.75rem; 
+            border: 1px solid var(--accent-blue); 
+            padding: 8px 12px; 
+            border-radius: 4px;
+        }
+
+        .container { flex: 1; max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+
+        .product-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 30px; 
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+        }
+
+        .slider-viewport { 
+            width: 100%; 
+            aspect-ratio: 1 / 1; 
+            background: rgba(255,255,255,0.5);
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            overflow: hidden; 
+            position: relative; 
+        }
+
+        .slider-wrapper { display: flex; height: 100%; }
+        .slider-item { min-width: 100%; display: flex; align-items: center; justify-content: center; }
+        .slider-item img { max-width: 90%; max-height: 90%; object-fit: contain; }
+
+        .price-tag { font-size: 2rem; color: #1e7e34; margin: 15px 0; font-weight: bold; }
+        
+        /* Bulk Config Styles */
+        .config-container {
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .unit-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .unit-row:last-child { border: none; }
+
+        select, input { 
+            width: 100%; 
+            background: #fff; 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            border-radius: 5px; 
+            font-family: inherit; 
+            font-size: 0.8rem;
+        }
+
+        .buy-button { 
+            width: 100%; 
+            padding: 18px; 
+            background: var(--accent-blue); 
+            color: #fff; 
+            border: none; 
+            border-radius: 10px;
+            font-weight: bold; 
+            text-transform: uppercase;
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+
+        .buy-button:hover { background: #0056b3; transform: scale(1.01); }
+
+        .shop-footer {
+            padding: 30px 0;
+            text-align: center;
+            background: var(--header-blue);
+            color: #666;
+            font-size: 0.7rem;
+        }
+
+        @media (max-width: 900px) { .product-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <header class="shop-header">
+        <div class="header-content">
+            <img src="301015489_443828151102927_1957794053294967618_n.png" alt="LOGO" class="logo">
+            <div class="status-info">
+                <h1>Order Configuration</h1>
+                <p id="connectionStatus" style="font-size:0.6rem; color:var(--accent-blue)">NODE: CONNECTED</p>
+            </div>
+            <a href="cart.html" class="cart-link">CART: [<span id="cartCount">0</span>]</a>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="productDetail">
+            <p style="text-align:center">Loading Secure Ledger...</p>
+        </div>
+    </main>
+
+    <footer class="shop-footer">
+        <p>&copy; 2026 KHOZA.IO - Logistics Network [Parlock/Pinetown/Durban][cite: 1]</p>
+    </footer>
+
+    <script>
+        const RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+        const CONTRACT_ADDRESS = "0x0E763c0d3bCdFa4f744B9DE3355B67B3A9b262Ba";
+        const GATEWAY = "https://gateway.pinata.cloud/ipfs/";
+        
+        let currentPrice = 0;
+        let totalImages = 0;
+        let productData = null;
+
+        const ABI = [
+            {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"products","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"admin","type":"address"},{"internalType":"string","name":"itemCode","type":"string"},{"internalType":"string","name":"itemName","type":"string"},{"internalType":"uint256","name":"retailPrice","type":"uint256"},{"internalType":"uint256","name":"stockPrice","type":"uint256"},{"internalType":"string","name":"colour","type":"string"},{"internalType":"uint256","name":"quantityAvailable","type":"uint256"},{"internalType":"uint256","name":"totalSold","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"_pId","type":"uint256"}],"name":"getProductImages","outputs":[{"internalType":"string[]","name":"","type":"string[]"}],"stateMutability":"view","type":"function"}
+        ];
+
+        async function loadDetails() {
+            const productId = localStorage.getItem("selected_product_id");
+            if (!productId) return;
+
+            try {
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+                const [p, rawImages] = await Promise.all([
+                    contract.products(productId),
+                    contract.getProductImages(productId)
+                ]);
+
+                productData = p;
+                currentPrice = Number(p.retailPrice);
+                const images = rawImages.filter(i => i).map(i => i.startsWith('http') ? i : `${GATEWAY}${i}`);
+                totalImages = images.length;
+
+                document.getElementById('productDetail').innerHTML = `
+                    <div class="product-grid">
+                        <div class="media-side">
+                            <div class="slider-viewport">
+                                <div class="slider-wrapper" id="sliderWrapper">
+                                    ${images.map(src => `<div class="slider-item"><img src="${src}"></div>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-side">
+                            <h1 style="margin:0">${p.itemName}</h1>
+                            <div class="price-tag">R${currentPrice.toLocaleString()}</div>
+                            
+                            <label style="font-size:0.7rem; font-weight:bold">ORDER QUANTITY</label>
+                            <input type="number" id="mainQty" value="1" min="1" oninput="generateConfigs(); updateTotals();" style="margin-bottom:20px">
+
+                            <label style="font-size:0.7rem; font-weight:bold">UNIT CONFIGURATION</label>
+                            <div class="config-container" id="configList">
+                                <!-- Unit rows injected here -->
+                            </div>
+
+                            <label style="font-size:0.7rem; font-weight:bold">LOGISTICS ZONE</label>
+                            <select id="location" onchange="updateTotals()">
+                                <option value="Standard">Standard SA</option>
+                                <option value="Durban CBD">Durban CBD</option>
+                                <option value="Parlock">Parlock</option>
+                                <option value="Pinetown">Pinetown</option>
+                            </select>
+
+                            <div style="margin:20px 0; border-top:1px solid #eee; padding-top:15px">
+                                <div style="display:flex; justify-content:space-between"><span>Logistics:</span><span id="shipFee">R 0.00</span></div>
+                                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.2rem; color:var(--accent-blue)">
+                                    <span>GRAND TOTAL:</span><span id="finalTotal">R 0.00</span>
+                                </div>
+                            </div>
+
+                            <button class="buy-button" onclick="finalizeOrder('${images[0] || ''}')">COMMIT TO CART</button>
+                        </div>
+                    </div>
+                `;
+                generateConfigs();
+                updateTotals();
+                updateBadge();
+            } catch (err) { console.error(err); }
+        }
+
+        function generateConfigs() {
+            const qty = parseInt(document.getElementById('mainQty').value) || 1;
+            const list = document.getElementById('configList');
+            list.innerHTML = "";
+
+            for (let i = 1; i <= qty; i++) {
+                list.innerHTML += `
+                    <div class="unit-row" data-unit="${i}">
+                        <span style="font-size:0.6rem; color:#888">#${i}</span>
+                        <select class="unit-size">
+                            <option>S</option><option selected>M</option><option>L</option><option>XL</option><option>2XL</option>
+                        </select>
+                        <select class="unit-color">
+                            <option>Black</option><option>White</option><option>Navy</option><option>Grey</option>
+                        </select>
+                    </div>
+                `;
+            }
+        }
+
+        function updateTotals() {
+            const qty = parseInt(document.getElementById('mainQty').value) || 1;
+            const loc = document.getElementById('location').value;
+            const rates = { "Durban CBD": [40, 60, 100, 180], "Parlock": [50, 70, 110, 190], "Pinetown": [70, 100, 170, 230], "Standard": [60, 100, 180, 240] };
+            const s = rates[loc] || rates["Standard"];
+            
+            let ship = s[0];
+            if (qty > 4) ship = s[1];
+            if (qty > 10) ship = s[2];
+            if (qty > 20) ship = s[3];
+
+            document.getElementById('shipFee').innerText = `R ${ship.toLocaleString()}`;
+            document.getElementById('finalTotal').innerText = `R ${(currentPrice * qty + ship).toLocaleString()}`;
+        }
+
+       function finalizeOrder(img) {
+    const qty = parseInt(document.getElementById('mainQty').value);
+    const rows = document.querySelectorAll('.unit-row');
+    let variations = [];
+
+    rows.forEach(row => {
+        const size = row.querySelector('.unit-size').value;
+        const color = row.querySelector('.unit-color').value;
+        variations.push(`${size}(${color})`);
+    });
+
+    const orderItem = {
+        id: localStorage.getItem("selected_product_id"),
+        name: productData.itemName,
+        price: currentPrice,
+        image: img,
+        quantity: qty,
+        variant: variations.join(", "),
+        location: document.getElementById('location').value,
+        shipping: parseFloat(document.getElementById('shipFee').innerText.replace('R ', '').replace(',', '')),
+        itemTotal: (currentPrice * qty)
+    };
+
+    // This calls the function in cart-logic.js
+    addToCart(orderItem); 
+    updateBadge(); // Refresh the counter immediately
+}
+
+function updateBadge() {
+    // Ensure this matches the key in cart-logic.js
+    const cart = JSON.parse(localStorage.getItem('khoza_cart') || "[]");
+    document.getElementById('cartCount').innerText = cart.reduce((s, i) => s + i.quantity, 0);
+}
+
+        window.onload = loadDetails;
+    </script>
+</body>
+</html>

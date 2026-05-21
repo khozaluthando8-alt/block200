@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout | KHOZA.IO</title>
+    <link rel="stylesheet" href="style2.css">
+    <script src="cart-logic.js"></script>
+    <script src="cart6.js"></script>
+
+    <script type="text/javascript">
+        // PayFast Validation Logic
+        function shippingRequiredPayFast(formReference) {
+            let cont = true;
+            for (let i = 0; i < formReference.elements.length; i++) {
+                if (formReference.elements[i].className !== 'shipping') continue;
+                if (formReference.elements[i].name === 'line2') continue;
+                if (!cont) continue;
+
+                if (formReference.elements[i].name === 'country') {
+                    if (formReference.elements[i].selectedIndex === 0) {
+                        cont = false;
+                        alert('Select a country');
+                    }
+                } else {
+                    if (0 === formReference.elements[i].value.length || /^\s*$/.test(formReference.elements[i].value)) {
+                        cont = false;
+                        alert('Complete all the mandatory address fields');
+                    }
+                }
+            }
+            return cont;
+        }
+
+        function customQuantitiesPayFast(formReference) {
+            // Note: In a cart setup, we usually pass the final total as 'amount' and quantity as '1'
+            // because the cart has already calculated the bulk total.
+            formReference['amount'].value = formReference['amount'].value * formReference['custom_quantity'].value;
+            return true;
+        }
+
+        function actionPayFastJavascript(formReference) {
+            let shippingValid = shippingRequiredPayFast(formReference);
+            if (!shippingValid) return false;
+            
+            let customValid = customQuantitiesPayFast(formReference);
+            if (!customValid) return false;
+
+            return true;
+        }
+
+        // Bridge function to connect your cart to this specific form
+        function syncCartToPayFast() {
+            const cart = getCart();
+            if (cart.length === 0) {
+                alert("Cart is empty");
+                return;
+            }
+
+            // Calculate totals using your cart-logic
+            let totalItemsPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const primaryLocation = cart[0].location || "Standard";
+            const rates = { "Durban CBD": 40, "Parlock": 50, "Pinetown": 70, "Standard": 60 };
+            const deliveryFee = rates[primaryLocation] || rates["Standard"];
+            
+            const finalAmount = totalItemsPrice + deliveryFee;
+
+            // Set the values in the PayFast Pay Now form
+            document.getElementById('PayFastAmount').value = finalAmount.toFixed(2);
+            document.getElementById('pf_item_name').value = "KHOZA Order Bundle";
+        }
+    </script>
+</head>
+<body onload="renderCartPage(); syncCartToPayFast();">
+
+    <header class="shop-header">
+        <h1>Secure Checkout</h1>
+        <a href="shop2.html">Back to Shop</a>
+    </header>
+
+
+<main class="container">
+    <div class="glass-panel" style="margin-bottom: 20px;">
+        <label for="location"><strong>Select Delivery Area:</strong></label>
+        <select id="location" onchange="updateTotals()" style="width: 100%; padding: 10px; margin-top: 10px;">
+            <option value="Standard">Standard (R60)</option>
+            <option value="Durban CBD">Durban CBD (R40)</option>
+            <option value="Parlock">Parlock (R50)</option>
+            <option value="Pinetown">Pinetown (R70)</option>
+        </select>
+    </div>
+
+    <div id="productDetail">
+        </div>
+</main>
+    <main class="product-view-container">
+        <div id="cartDisplay" class="glass-panel" style="margin-bottom:20px;"></div>
+        <div id="cartTotals" class="glass-panel" style="margin-bottom:20px;"></div>
+
+        <div class="glass-panel">
+            <form onsubmit="return actionPayFastJavascript( this );" name="PayFastPayNowForm" action="https://payment.payfast.io/eng/process" method="post">
+                <input required type="hidden" name="cmd" value="_paynow">
+                <input required type="hidden" name="receiver" value="17018165">
+                
+                <h3 style="color:var(--accent-blue);">1. Payment Summary</h3>
+                <table style="width:100%; margin-bottom:20px;">
+                    <tr>
+                        <td>Total Amount (ZAR):</td>
+                        <td><input required id="PayFastAmount" type="number" step=".01" name="amount" min="5.00" readonly style="background:#f0f0f0;"></td>
+                    </tr>
+                    <tr style="display:none;">
+                        <td>Quantity:</td>
+                        <td><input required id="custom_quantity" type="number" name="custom_quantity" value="1"></td>
+                    </tr>
+                </table>
+
+                <input required type="hidden" name="item_name" id="pf_item_name" value="KHOZA Order">
+
+                <h3 style="color:var(--accent-blue);">2. Shipping Address</h3>
+                <table style="width:100%;">
+                    <tr>
+                        <td>Line 1 <span style="color:red;">*</span></td>
+                        <td><input type="text" name="line1" class="shipping" required placeholder="Street Address"></td>
+                    </tr>
+                    <tr>
+                        <td>Line 2</td>
+                        <td><input type="text" name="line2" class="shipping" placeholder="Apartment/Suite"></td>
+                    </tr>
+                    <tr>
+                        <td>City <span style="color:red;">*</span></td>
+                        <td><input type="text" class="shipping" name="city" required></td>
+                    </tr>
+                    <tr>
+                        <td>Province <span style="color:red;">*</span></td>
+                        <td><input type="text" class="shipping" name="region" required placeholder="e.g. KZN"></td>
+                    </tr>
+                    <tr>
+                        <td>Country <span style="color:red;">*</span></td>
+                        <td>
+                            <select name="country" class="shipping" required>
+                                <option value="" selected="selected">- Select -</option>
+                                <option value="South Africa">South Africa</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Postal Code <span style="color:red;">*</span></td>
+                        <td><input type="number" name="code" class="shipping" required></td>
+                    </tr>
+                </table>
+
+                <div style="text-align:center; margin-top:30px;">
+                    <input type="image" src="https://my.payfast.io/images/buttons/BuyNow/Primary-Small-BuyNow.png" alt="Buy Now" title="Buy Now with Payfast">
+                </div>
+            </form>
+        </div>
+    </main>
+
+</body>
+</html>

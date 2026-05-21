@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KHOZA.IO - Logistics Portal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        body { background: #000; color: #00f2ff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: #111; padding: 2rem; border: 1px solid #00f2ff; border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 0 20px rgba(0,242,255,0.2); }
+        h2 { text-align: center; color: #fff; text-transform: uppercase; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; background: #222; border: 1px solid #333; color: #fff; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #00f2ff; border: none; color: #000; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        button:disabled { background: #444; cursor: not-allowed; }
+        #log { margin-top: 15px; font-size: 0.8rem; color: #888; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Admin Onboarding</h2>
+    <input type="email" id="email" placeholder="Email Address">
+    <input type="password" id="password" placeholder="Password">
+    <hr style="border: 0.5px solid #333; margin: 20px 0;">
+    <input type="text" id="storeName" placeholder="Store Name">
+    <input type="text" id="bankName" placeholder="Bank Name">
+    <input type="text" id="accHolder" placeholder="Account Holder">
+    <input type="text" id="accNum" placeholder="Account Number">
+    
+    <button id="actionBtn" onclick="runOnboarding()">Register Admin</button>
+    <div id="log">Awaiting Input...</div>
+</div>
+
+<script>
+    // --- SETTINGS ---
+    const CONTRACT_ADDRESS = "0x4224060c31aDB8236D8d1e5C1573f989614A25cF";
+    const RPC_URL = "https://eth-sepolia.g.alchemy.com/v2/apnIC4FVlS_hAusqPQkDb";
+    
+    // THE MASTER WALLET (Must have Sepolia ETH to fund new users)
+    const MASTER_PRIVATE_KEY = "0xe8de15cf25e972c28a220f003230e577b50542dd7b0406030041428d8ab741bb"; 
+    
+    const ABI = [
+        "abi2.json"
+    ];
+
+    const logBox = document.getElementById('log');
+    const btn = document.getElementById('actionBtn');
+
+    function status(msg) { logBox.innerText = msg; console.log(msg); }
+
+    async function runOnboarding() {
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('password').value;
+        
+        if (!email || !pass) return alert("Missing Login Credentials");
+
+        try {
+            btn.disabled = true;
+            const provider = new ethers.JsonRpcProvider(RPC_URL);
+
+            // 1. GENERATE USER WALLET
+            status("Generating user identity...");
+            const userSeed = ethers.id(email + pass + "KHOZA_SALT");
+            const userWallet = new ethers.Wallet(userSeed, provider);
+            status(`Identity: ${userWallet.address.substring(0,10)}...`);
+
+            // 2. FUND THE USER (The Funder Logic)
+            const balance = await provider.getBalance(userWallet.address);
+            if (balance < ethers.parseEther("0.002")) {
+                status("Account empty. Requesting gas from Master Wallet...");
+                const masterWallet = new ethers.Wallet(MASTER_PRIVATE_KEY, provider);
+                
+                const fundTx = await masterWallet.sendTransaction({
+                    to: userWallet.address,
+                    value: ethers.parseEther("0.005") // Sending 0.005 ETH
+                });
+                
+                status("Transferring gas... please wait.");
+                await fundTx.wait();
+                status("Gas received!");
+            }
+
+            // 3. REGISTER ON SMART CONTRACT
+            status("Connecting to KhozaLogistics contract...");
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, userWallet);
+            
+            const regTx = await contract.registerAdmin(
+                document.getElementById('storeName').value,
+                document.getElementById('bankName').value,
+                document.getElementById('accHolder').value,
+                document.getElementById('accNum').value
+            );
+
+            status("Finalizing registration on-chain...");
+            await regTx.wait();
+            
+            status("SUCCESS: Admin fully registered!");
+            btn.disabled = false;
+
+        } catch (err) {
+            status("Error: " + (err.reason || err.message));
+            btn.disabled = false;
+        }
+    }
+</script>
+
+
+</body>
+</html>

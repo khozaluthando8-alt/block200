@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout | KHOZA.IO</title>
+    <link rel="stylesheet" href="style2.css">
+    <script src="cart-logic.js"></script>
+    <script src="cart6.js"></script>
+
+    <script type="text/javascript">
+        // PayFast Validation Logic
+        function shippingRequiredPayFast(formReference) {
+            let cont = true;
+            for (let i = 0; i < formReference.elements.length; i++) {
+                if (formReference.elements[i].className !== 'shipping') continue;
+                if (formReference.elements[i].name === 'line2') continue;
+                if (!cont) continue;
+
+                if (formReference.elements[i].name === 'country') {
+                    if (formReference.elements[i].selectedIndex === 0) {
+                        cont = false;
+                        alert('Select a country');
+                    }
+                } else {
+                    if (0 === formReference.elements[i].value.length || /^\s*$/.test(formReference.elements[i].value)) {
+                        cont = false;
+                        alert('Complete all the mandatory address fields');
+                    }
+                }
+            }
+            return cont;
+        }
+
+        function customQuantitiesPayFast(formReference) {
+            // We use the already calculated final total from our cart
+            return true;
+        }
+
+        function actionPayFastJavascript(formReference) {
+            let shippingValid = shippingRequiredPayFast(formReference);
+            if (!shippingValid) return false;
+            
+            return true;
+        }
+
+        // UPDATED: Syncs Cart Subtotal and Delivery to PayFast Amount
+        function syncCartToPayFast() {
+            const cart = getCart();
+            if (cart.length === 0) {
+                document.getElementById('PayFastAmount').value = "0.00";
+                return;
+            }
+
+            // 1. Calculate Items Subtotal
+            let totalItemsPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            // 2. Calculate Delivery (Mirroring your cart7 logic)
+            const primaryLocation = cart[0].location || "Standard";
+            const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
+            
+            const rates = { 
+                "Durban CBD": [40, 60, 100, 180], 
+                "Parlock": [50, 70, 110, 190], 
+                "Pinetown": [70, 100, 170, 230], 
+                "Standard": [60, 100, 180, 240] 
+            };
+            
+            const s = rates[primaryLocation] || rates["Standard"];
+            let deliveryFee = s[0];
+            if (totalQty > 4) deliveryFee = s[1];
+            if (totalQty > 10) deliveryFee = s[2];
+            if (totalQty > 20) deliveryFee = s[3];
+
+            // 3. Final Calculation
+            const finalTotal = totalItemsPrice + deliveryFee;
+
+            // 4. Reflect on the UI and the Hidden PayFast input
+            document.getElementById('PayFastAmount').value = finalTotal.toFixed(2);
+            document.getElementById('displaySubtotal').innerText = "R" + totalItemsPrice.toLocaleString();
+            document.getElementById('displayDelivery').innerText = "R" + deliveryFee.toLocaleString();
+            document.getElementById('pf_item_name').value = `Order: ${totalQty} items via ${primaryLocation}`;
+        }
+    </script>
+</head>
+<body onload="renderCartPage(); syncCartToPayFast();">
+
+    <header class="shop-header">
+        <h1>Secure Checkout</h1>
+        <a href="shop.html">Back to Shop</a>
+    </header>
+
+    <main class="product-view-container">
+        <div id="cartDisplay" class="glass-panel" style="margin-bottom:20px;"></div>
+
+        <div class="glass-panel" style="margin-bottom:20px;">
+            <h3 style="color:var(--accent-blue); margin-top:0;">1. Payment Summary</h3>
+            <div style="padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span>Cart Subtotal:</span>
+                    <span id="displaySubtotal">R0.00</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span>Delivery Fee:</span>
+                    <span id="displayDelivery">R0.00</span>
+                </div>
+                <hr style="border:0; border-top:1px solid #eee;">
+                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.2rem; color:#333;">
+                    <span>Total Amount:</span>
+                    <span>R<span id="displayTotalManual">0.00</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-panel">
+            <form onsubmit="return actionPayFastJavascript( this );" name="PayFastPayNowForm" action="https://payment.payfast.io/eng/process" method="post">
+                <input required type="hidden" name="cmd" value="_paynow">
+                <input required type="hidden" name="receiver" value="17018165">
+                
+                <input type="hidden" name="custom_quantity" value="1">
+                <input required type="hidden" name="item_name" id="pf_item_name" value="KHOZA Order">
+
+                <table style="width:100%; margin-bottom:20px; display:none;">
+                    <tr>
+                        <td>PayFast Processing Amount:</td>
+                        <td><input required id="PayFastAmount" type="number" step=".01" name="amount" value="0.00"></td>
+                    </tr>
+                </table>
+
+                <h3 style="color:var(--accent-blue);">2. Shipping Address</h3>
+                <table style="width:100%;">
+                    <tr>
+                        <td>Street Address <span style="color:red;">*</span></td>
+                        <td><input type="text" name="line1" class="shipping" required></td>
+                    </tr>
+                    <tr>
+                        <td>City <span style="color:red;">*</span></td>
+                        <td><input type="text" class="shipping" name="city" required></td>
+                    </tr>
+                    <tr>
+                        <td>Province <span style="color:red;">*</span></td>
+                        <td><input type="text" class="shipping" name="region" required placeholder="KZN"></td>
+                    </tr>
+                    <tr>
+                        <td>Country <span style="color:red;">*</span></td>
+                        <td>
+                            <select name="country" class="shipping" required>
+                                <option value="South Africa" selected>South Africa</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Postal Code <span style="color:red;">*</span></td>
+                        <td><input type="number" name="code" class="shipping" required></td>
+                    </tr>
+                </table>
+
+                <div style="text-align:center; margin-top:30px;">
+                    <input type="image" src="https://my.payfast.io/images/buttons/BuyNow/Primary-Small-BuyNow.png" alt="Buy Now" title="Buy Now with Payfast">
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        // Update the visual total as well
+        function updateVisualTotal() {
+            const amt = document.getElementById('PayFastAmount').value;
+            document.getElementById('displayTotalManual').innerText = amt;
+        }
+        // Run slightly after sync
+        setTimeout(updateVisualTotal, 100);
+    </script>
+</body>
+</html>

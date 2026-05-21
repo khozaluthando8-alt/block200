@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Configuration | KHOZA.IO</title>
+     <link rel="stylesheet" href="style20.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <script src="cart-logic.js"></script>
+<script src="product14.js"></script>
+</head>
+<body>
+
+    <header class="shop-header">
+        <div class="header-content">
+            <img src="301015489_443828151102927_1957794053294967618_n.png" alt="LOGO" class="logo">
+            <div class="status-info">
+                <h1>Order Configuration</h1>
+                <p id="connectionStatus" style="font-size:0.6rem; color:var(--accent-blue)">NODE: CONNECTED</p>
+            </div>
+            <a href="cart2.html" class="cart-link">CART: [<span id="cartCount">0</span>]</a>
+        </div>
+    </header>
+
+    <main class="container">
+       <section class="config-details">
+    <div class="selection-section">
+        <label class="selector-label">Configure Your Units</label>
+        <div id="unitRowsContainer">
+            <div class="unit-row" style="display:flex; gap:10px; margin-bottom:10px; background:#f4f4f4; padding:10px; border-radius:5px;">
+                <select class="unit-color" onchange="updateAutoQuantity()">
+                    <option value="">Colour</option>
+                    </select>
+                <select class="unit-size" onchange="updateAutoQuantity()">
+                    <option value="">Size</option>
+                    </select>
+                <button type="button" onclick="removeUnitRow(this)" style="color:red; background:none; border:none;">✕</button>
+            </div>
+        </div>
+
+        <button type="button" id="addUnitBtn" class="secondary-btn">+ Add Another Unit</button>
+    </div>
+
+    <div class="selection-section">
+        <p>Total Selected: <span id="autoQtyDisplay" style="font-weight:bold;">1</span></p>
+        <input type="hidden" id="purchaseQty" value="1">
+    </div>
+
+    <button id="addToCartBtn" onclick="stageOrder()" class="primary-btn">ADD TO CONFIGURATION</button>
+</section>
+    </main>
+
+    <footer class="shop-footer">
+        <p>&copy; 2026 KHOZA.IO - Logistics Network [Parlock/Pinetown/Durban][cite: 1]</p>
+    </footer>
+
+   
+</body>
+</html>

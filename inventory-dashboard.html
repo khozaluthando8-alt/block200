@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventory Intelligence | KHOZA.IO</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        :root { --neon-blue: #00f2ff; --neon-green: #00ff88; --neon-red: #ff4444; --neon-yellow: #ffdd00; }
+        body { background: #000; color: var(--neon-blue); font-family: 'Courier New', monospace; padding: 20px; }
+        .container { max-width: 1100px; margin: 0 auto; background: #0a0a0a; border: 1px solid var(--neon-blue); padding: 25px; border-radius: 8px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 15px; margin-bottom: 25px; }
+        h1 { margin: 0; text-transform: uppercase; font-size: 1.4rem; letter-spacing: 2px; }
+
+        /* Stock Status Cards */
+        .status-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+        .card { background: #111; border: 1px solid #222; padding: 15px; text-align: center; }
+        .label { font-size: 0.7rem; color: #888; text-transform: uppercase; display: block; }
+        .value { font-size: 1.5rem; font-weight: bold; color: #fff; }
+
+        /* Inventory Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #050505; }
+        th { background: #111; color: var(--neon-blue); text-align: left; padding: 15px; font-size: 0.8rem; border-bottom: 1px solid #333; }
+        td { padding: 15px; border-bottom: 1px solid #111; font-size: 0.9rem; }
+        
+        /* Stock Meter (Visual Bar) */
+        .meter-bg { width: 100%; background: #222; height: 8px; border-radius: 4px; margin-top: 5px; overflow: hidden; }
+        .meter-fill { height: 100%; transition: width 0.5s ease-in-out; }
+        
+        .low-stock { color: var(--neon-red); font-weight: bold; }
+        .healthy-stock { color: var(--neon-green); }
+        .refresh-btn { background: var(--neon-blue); color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Inventory & Movement Tracker</h1>
+        <button class="refresh-btn" onclick="loadInventory()">SCAN WAREHOUSE</button>
+    </div>
+
+    <div class="status-grid">
+        <div class="card">
+            <span class="label">Total SKUs</span>
+            <span class="value" id="skuCount">0</span>
+        </div>
+        <div class="card">
+            <span class="label">Total Units Sold</span>
+            <span class="value" id="soldCount" style="color: var(--neon-green);">0</span>
+        </div>
+        <div class="card">
+            <span class="label">Current Stock Left</span>
+            <span class="value" id="remainingCount" style="color: var(--neon-blue);">0</span>
+        </div>
+        <div class="card">
+            <span class="label">Depletion Rate</span>
+            <span class="value" id="depletionRate">0%</span>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Item Code</th>
+                <th>Product Name</th>
+                <th>Initial Stock</th>
+                <th>Units Sold</th>
+                <th>Units Left</th>
+                <th>Inventory Health</th>
+            </tr>
+        </thead>
+        <tbody id="inventoryBody">
+            <tr><td colspan="6" style="text-align:center; padding:50px;">Initializing blockchain scan...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+    const CONTRACT_ADDRESS = "0x2139e2C85cbD38cCf774D624604d73ff42552fc7";
+    const ABI = [
+        "function productCount() public view returns (uint256)",
+        "function products(uint256) public view returns (uint256 id, address admin, string itemCode, string itemName, uint256 retailPrice, uint256 stockPrice, string colour, uint256 quantityAvailable, uint256 totalSold, bool isActive)"
+    ];
+
+    async function loadInventory() {
+        const tbody = document.getElementById('inventoryBody');
+        const adminKey = localStorage.getItem("admin_session_key");
+
+        if (!adminKey) {
+            tbody.innerHTML = "<tr><td colspan='6' style='color:red; text-align:center;'>ADMIN SESSION REQUIRED</td></tr>";
+            return;
+        }
+
+        try {
+            const provider = new ethers.JsonRpcProvider(RPC_URL);
+            const wallet = new ethers.Wallet(adminKey);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+            
+            const count = await contract.productCount();
+            let html = "";
+            let totals = { sku: 0, sold: 0, left: 0, initial: 0 };
+
+            for (let i = 1; i <= count; i++) {
+                const p = await contract.products(i);
+
+                // Only track products belonging to THIS admin
+                if (p.admin.toLowerCase() !== wallet.address.toLowerCase()) continue;
+
+                const sold = Number(p.totalSold);
+                const left = Number(p.quantityAvailable);
+                const initial = sold + left; // Calculate original stock
+                const percentLeft = initial > 0 ? (left / initial) * 100 : 0;
+
+                totals.sku++;
+                totals.sold += sold;
+                totals.left += left;
+                totals.initial += initial;
+
+                // Color coding for stock levels
+                const statusClass = percentLeft < 20 ? 'low-stock' : 'healthy-stock';
+                const barColor = percentLeft < 20 ? 'var(--neon-red)' : 'var(--neon-green)';
+
+                html += `
+                    <tr>
+                        <td><b>${p.itemCode}</b></td>
+                        <td>${p.itemName}</td>
+                        <td>${initial}</td>
+                        <td style="color:var(--neon-green)">${sold}</td>
+                        <td class="${statusClass}">${left}</td>
+                        <td>
+                            <div style="font-size: 0.7rem; margin-bottom: 3px;">${percentLeft.toFixed(0)}% REMAINING</div>
+                            <div class="meter-bg">
+                                <div class="meter-fill" style="width: ${percentLeft}%; background: ${barColor};"></div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            tbody.innerHTML = html || "<tr><td colspan='6' style='text-align:center;'>No inventory found for this node.</td></tr>";
+            
+            // Update Summary Cards
+            document.getElementById('skuCount').innerText = totals.sku;
+            document.getElementById('soldCount').innerText = totals.sold;
+            document.getElementById('remainingCount').innerText = totals.left;
+            
+            const globalRate = totals.initial > 0 ? (totals.sold / totals.initial) * 100 : 0;
+            document.getElementById('depletionRate').innerText = globalRate.toFixed(1) + "%";
+
+        } catch (err) {
+            console.error(err);
+            tbody.innerHTML = "<tr><td colspan='6' style='color:red; text-align:center;'>SCAN ERROR: Connection to node lost.</td></tr>";
+        }
+    }
+
+    window.onload = loadInventory;
+</script>
+</body>
+</html>

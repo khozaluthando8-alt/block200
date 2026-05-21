@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; 
+    style-src 'self' 'unsafe-inline'; 
+    connect-src 'self' https://ethereum-sepolia-rpc.publicnode.com https://eth-sepolia.g.alchemy.com;
+    form-action 'self' https://my.payfast.io https://www.payfast.co.za;
+    img-src 'self' data: https://my.payfast.io https://www.payfast.co.za;
+   ">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KHOZA.IO | Management Dashboard v18</title>
+    <link rel="stylesheet" href="admin.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        :root { --accent-blue: #007bff; --glass: rgba(255, 255, 255, 0.1); }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; }
+        .glass-panel { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .action-btn { background: var(--accent-blue); color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+        .nav-links { display: flex; gap: 20px; background: #333; padding: 15px; }
+        .nav-links a { color: white; text-decoration: none; font-size: 0.9rem; }
+        .table-scroll { overflow-x: auto; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #555; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+        .syncing { color: var(--accent-blue); font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+    <header class="shop-header" style="background:#fff; border-bottom:1px solid #eee; padding:10px 20px; display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="margin:0; color:var(--accent-blue);">KHOZA LOGISTICS <span style="font-size: 0.7rem; color:#888;">v18.0</span></h2>
+        <div id="ledgerStatus" class="syncing">INITIALIZING...</div>
+    </header>
+
+    <nav class="nav-links">
+        <a href="#" onclick="showSection('inventory')">STOCK CONTROL</a>
+        <a href="#" onclick="showSection('orders')">LIVE ORDERS</a>
+        <a href="#" onclick="showSection('stats')">ANALYTICS</a>
+    </nav>
+
+    <main class="container">
+        <section id="inventory">
+            <div class="glass-panel">
+                <h3>📦 Register New Ledger Stock</h3>
+                <form id="productForm">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <input type="text" id="itemCode" placeholder="Item Code (e.g. K-99)" required>
+                        <input type="text" id="itemName" placeholder="Product Name" required>
+                    </div>
+                    
+                    <input type="text" id="itemCategory" placeholder="Category (e.g. Apparel / Footwear)" required>
+                    <textarea id="itemDesc" placeholder="Full Product Description (displayed to customer)" required></textarea>
+                    
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                        <input type="number" id="retailPrice" placeholder="Retail Price (R)" required>
+                        <input type="number" id="stockPrice" placeholder="Wholesale/Bulk (R)" required>
+                        <input type="number" id="initialQty" placeholder="Total Units" required>
+                    </div>
+
+                    <input type="text" id="itemSizes" placeholder="Allowed Sizes (Comma separated: S, M, L, XL)" required>
+                    <input type="text" id="imageUrl" placeholder="Primary Image URL (HTTPS)" required>
+                    
+                    <button type="button" class="action-btn" id="submitBtn" onclick="syncProductToChain()">UPDATE BLOCKCHAIN INVENTORY</button>
+                </form>
+            </div>
+
+            <div class="glass-panel">
+                <h3>📑 Active Inventory</h3>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr><th>ID</th><th>CODE</th><th>NAME</th><th>STOCK</th><th>PRICE</th><th>CATEGORY</th></tr>
+                        </thead>
+                        <tbody id="inventoryList">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="orders" style="display:none;">
+            <div class="glass-panel">
+                <h3>🚚 Pending Dispatches</h3>
+                <div class="table-scroll">
+                    <table id="orderTable">
+                        <thead>
+                            <tr><th>REF</th><th>ITEM</th><th>QTY</th><th>VARIANTS</th><th>DELIVERY ADDRESS</th><th>STATUS</th></tr>
+                        </thead>
+                        <tbody id="adminOrderBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="admin-dash2.js"></script>
+</body>
+</html>

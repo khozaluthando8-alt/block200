@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+     <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://cdnjs.cloudflare.com;
+    connect-src 'self' https://ethereum-sepolia-rpc.publicnode.com;
+    style-src 'self' 'unsafe-inline';
+">
+    <title>KHOZA.IO - Portal Access</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        body { background: #000; color: #00f2ff; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { border: 1px solid #00f2ff; padding: 2rem; background: #111; width: 320px; box-shadow: 0 0 20px rgba(0,242,255,0.2); }
+        input { width: 100%; padding: 10px; margin: 10px 0; background: #000; border: 1px solid #333; color: #fff; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #00f2ff; color: #000; border: none; font-weight: bold; cursor: pointer; }
+        #status { font-size: 0.8rem; text-align: center; margin-top: 10px; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2 style="text-align: center;">TERMINAL LOGIN</h2>
+    <input type="email" id="email" placeholder="Enter Email">
+    <input type="password" id="password" placeholder="Enter Password">
+    <button onclick="identifyAndLogin()">Login</button>
+    <div id="status">Scanning Network...</div>
+</div>
+
+<script>
+    const CONTRACT_ADDRESS = "YOUR_CONTRACT_ADDRESS";
+    const RPC_URL = "https://rpc.sepolia.org";
+    const ABI = ["function getRole(address _user) public view returns (string memory)"];
+
+    async function identifyAndLogin() {
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('password').value;
+        const status = document.getElementById('status');
+
+        try {
+            status.innerText = "Generating Identity...";
+            const provider = new ethers.JsonRpcProvider(RPC_URL);
+            
+            // Deterministic wallet generation
+            const wallet = new ethers.Wallet(ethers.id(email + pass + "KHOZA_SALT"), provider);
+            
+            status.innerText = "Identifying Role...";
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+            const role = await contract.getRole(wallet.address);
+
+            // Store keys for the session
+            localStorage.setItem("user_role", role);
+            localStorage.setItem("user_addr", wallet.address);
+
+            // Redirect Logic
+            if (role === "admin") {
+                window.location.href = "admin-inventory3.html";
+            } else if (role === "customer") {
+                window.location.href = "shop.html";
+            } else if (role === "delivery") {
+                window.location.href = "delivery_dash.html";
+            } else {
+                status.innerText = "Error: Access Denied. Role not found.";
+            }
+        } catch (err) {
+            status.innerText = "Auth Error: " + err.message;
+        }
+    }
+</script>
+</body>
+</html>

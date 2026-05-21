@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Serverless Execution</title>
+</head>
+<body>
+
+    <h2>Secure Action Runner</h2>
+    <button id="runBtn">Execute Secure Task</button>
+    <p id="statusOutput">Click the button to process...</p>
+
+    <script>
+        document.getElementById('runBtn').addEventListener('click', async () => {
+            const statusOutput = document.getElementById('statusOutput');
+            statusOutput.innerText = "Processing securely on the server...";
+
+            try {
+                // Call the Netlify Serverless function endpoint
+                const response = await fetch('/.netlify/functions/secure-api', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        action: "execute_secure_task",
+                        timestamp: Date.now()
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusOutput.innerText = `Success: ${data.message}`;
+                } else {
+                    statusOutput.innerText = `Server Error: ${data.error}`;
+                }
+            } catch (err) {
+                statusOutput.innerText = `Network Error: ${err.message}`;
+            }
+        });
+    </script>
+</body>
+</html>

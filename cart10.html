@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; 
+    style-src 'self' 'unsafe-inline'; 
+    connect-src 'self' https://ethereum-sepolia-rpc.publicnode.com https://eth-sepolia.g.alchemy.com;
+    form-action 'self' https://my.payfast.io https://www.payfast.co.za;
+    img-src 'self' data: https://my.payfast.io https://www.payfast.co.za;
+    ">
+    <title>Your Cart | KHOZA.IO</title>
+    <link rel="stylesheet" href="style2.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <script src="cart-logic.js"></script>
+    <script src="logc2.js"></script>
+    <script src="payfast.js"></script> 
+     <script src="execute.js"></script>  
+</head>
+<body>
+    <header class="shop-header">
+        <h1>Your Secure Cart</h1>
+        <a href="shop2.html">Back to Shop</a>
+    </header>
+
+    <main class="product-view-container">
+        <div id="cartDisplay" class="product-glass-layout">
+            </div>
+        
+        <div class="cart-summary product-glass-layout" style="margin-top: 20px;">
+            <h3>Order Finalization</h3>
+            <div id="cartTotals"></div>
+            <div class="payment-selection" style="margin: 20px 0; padding: 15px; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(255,255,255,0.05);">
+                <h4 style="margin-top:0;">Payment Method</h4>
+                <label style="display:block; margin-bottom:10px; cursor:pointer;">
+                    <input type="radio" name="paymentMethod" value="delivery" checked onclick="togglePaymentUI()"> Pay on Delivery (Ledger Only)
+                </label>
+                <label style="display:block; cursor:pointer;">
+                    <input type="radio" name="paymentMethod" value="payfast" onclick="togglePaymentUI()"> Pay with PayFast (Credit/Debit/EFT)
+                </label>
+            </div>
+            
+            <div id="payfastUI" style="display:none;">
+                
+<form id="payfastForm" onsubmit="return actionPayFastJavascript( this );" name="PayFastPayNowForm" action="https://payment.payfast.io/eng/process" method="post" style="margin-top:20px; padding:15px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+<input required type="hidden" name="cmd" value="_paynow">
+<input required type="hidden" name="receiver" pattern="[0-9]" value="17018165">
+<table style="width:100%; color: inherit;">
+<tr>
+<td><label id="PayFastAmountLabel" for="PayFastAmount">Amount: </label></td>
+<td><input required id="PayFastAmount" type="number" step=".01" name="amount" min="5.00" placeholder="5.00" value="5" readonly style="background:transparent; color:inherit; border:1px solid #555; padding:5px;"></td>
+</tr>
+</table>
+
+<table style="width:100%; color: inherit; display:none;">
+<tr>
+<td><label for="custom_quantity">Quantity: </label></td>
+<td><input required id="custom_quantity" type="number" name="custom_quantity" value="1"></td>
+</tr>
+</table>
+
+<input required type="hidden" name="item_name" id="PayFastItemName" maxlength="255" value="KHOZA Bulk Order">
+<table style="width:100%; color: inherit; margin-top:10px;">
+<tr>
+<td colspan="2"><span style="font-weight: bold;">Shipping Address (Required for PayFast)</span></td>
+</tr>
+<tr>
+<td><span style="color:red;">*</span>&nbsp;Line 1</td>
+<td><input type="text" name="line1" class="shipping" value="" style="width:100%; background:transparent; color:inherit; border:1px solid #555;"></td>
+</tr>
+<tr>
+<td>Line 2</td>
+<td><input type="text" name="line2" class="shipping" value="" style="width:100%; background:transparent; color:inherit; border:1px solid #555;"></td>
+</tr>
+<tr>
+<td><span style="color:red;">*</span>&nbsp;City</td>
+<td><input type="text" class="shipping" name="city" value="" style="width:100%; background:transparent; color:inherit; border:1px solid #555;"></td>
+</tr>
+<tr>
+<td><span style="color:red;">*</span>&nbsp;Province</td>
+<td><input type="text" class="shipping" name="region" value="" style="width:100%; background:transparent; color:inherit; border:1px solid #555;"></td>
+</tr>
+<tr>
+<td><span style="color:red;">*</span>&nbsp;Country</td>
+<td>
+<select name="country" class="shipping" style="width:100%; background:#333; color:inherit; border:1px solid #555;">
+<option value="" selected="selected">- Select -</option>
+<option value="South Africa">South Africa</option>
+<option value="">------------------------</option>
+<option value="Botswana">Botswana</option>
+<option value="Lesotho">Lesotho</option>
+<option value="Mauritius">Mauritius</option>
+<option value="Mozambique">Mozambique</option>
+<option value="Swaziland">Swaziland</option>
+<option value="Zimbabwe">Zimbabwe</option>
+</select>
+</td>
+</tr>
+<tr>
+<td><span style="color:red;">*</span>&nbsp;Postal Code</td>
+<td><input type="number" name="code" class="shipping" value="" style="width:100%; background:transparent; color:inherit; border:1px solid #555;"></td>
+</tr>
+</table>
+<table style="width:100%; margin-top:10px;">
+<tr>
+<td colspan=2 align=center>
+<input id="payfastSubmitBtn" type="image" src="https://my.payfast.io/images/buttons/BuyNow/Primary-Small-BuyNow.png" alt="Buy Now" title="Buy Now with Payfast">
+</td>
+</tr>
+</table>
+</form>
+
+            </div>
+
+            <button class="buy-button" id="executeBtn" onclick="processBulkOrder()">EXECUTE BULK ORDER</button>
+        </div>
+    </main>
+
+</body>
+</html>

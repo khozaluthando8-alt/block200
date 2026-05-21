@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KHOZA.IO | Unified Compiler & Deployer</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <script src="https://binaries.soliditylang.org/bin/soljson-v0.8.20+commit.a1b7d46c.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-solidity.min.js"></script>
+
+    <style>
+        :root { --accent: #ffcc00; --bg: #121212; --panel: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; display: flex; height: 100vh; }
+        
+        /* Left Side: Editor */
+        .editor-side { width: 50%; display: flex; flex-direction: column; border-right: 2px solid #333; }
+        .editor-container { flex-grow: 1; position: relative; overflow: hidden; }
+        #editing, #highlighting { margin: 0; padding: 20px; width: 100%; height: 100%; position: absolute; top: 0; left: 0; font-family: monospace; font-size: 13pt; white-space: pre; overflow: auto; box-sizing: border-box; border: none; }
+        #editing { z-index: 1; background: transparent; color: transparent; caret-color: white; resize: none; outline: none; }
+        #highlighting { z-index: 0; background: var(--panel); }
+
+        /* Right Side: Actions & Output */
+        .action-side { width: 50%; padding: 25px; overflow-y: auto; box-sizing: border-box; }
+        .card { background: var(--panel); padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        button { background: var(--accent); color: black; border: none; padding: 12px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px; }
+        button:disabled { background: #555; }
+        input { width: 100%; padding: 10px; background: #000; border: 1px solid #444; color: white; margin-top: 5px; box-sizing: border-box; }
+        
+        #errorLog { color: #ff4444; font-family: monospace; font-size: 12px; white-space: pre-wrap; background: #2a0000; padding: 10px; border-radius: 5px; display: none; }
+        .output-label { font-size: 12px; color: #888; margin-top: 15px; text-transform: uppercase; }
+        .data-box { background: #000; padding: 10px; font-family: monospace; font-size: 11px; border: 1px solid #333; overflow-x: auto; color: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <div class="editor-side">
+        <div style="padding: 10px; background: #333; font-size: 14px; font-weight: bold;">📝 cfw8.sol</div>
+        <div class="editor-container">
+            <textarea id="editing" spellcheck="false" oninput="updateSyntax();" onscroll="syncScroll();">// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract KhozaLogistics {
+    address public owner;
+    constructor() { owner = msg.sender; }
+    
+    receive() external payable {}
+    
+    function requestGasRefuel(address payable _user) public {
+        require(_user.balance < 0.001 ether, "Sufficient gas");
+        require(address(this).balance >= 0.005 ether, "Vault empty");
+        _user.transfer(0.005 ether);
+    }
+}</textarea>
+            <pre id="highlighting" aria-hidden="true"><code class="language-solidity" id="highlighting-content"></code></pre>
+        </div>
+    </div>
+
+    <div class="action-side">
+        <h2 style="margin-top: 0;">🚀 KHOZA Engine</h2>
+        
+        <div class="card">
+            <h3>Step 1: Compile</h3>
+            <button onclick="compileCode()">Run Solidity Compiler</button>
+            <div id="errorLog"></div>
+        </div>
+
+        <div class="card">
+            <h3>Step 2: Deploy to HOODIE</h3>
+            <label>RPC URL</label>
+            <input type="text" id="rpcUrl" value="https://rpc.hoodie-testnet.io">
+            <label>Private Key</label>
+            <input type="password" id="privKey" placeholder="0x...">
+            <button id="deployBtn" onclick="deployContract()" disabled>Deploy to Testnet</button>
+        </div>
+
+        <div id="resultCard" class="card" style="display: none; border: 1px solid var(--accent);">
+            <h3 style="color: var(--accent);">✅ Deployment Success</h3>
+            <div class="output-label">Contract Address</div>
+            <div id="finalAddr" class="data-box"></div>
+            <div class="output-label">ABI (Copy this for your JS files)</div>
+            <div id="finalAbi" class="data-box" style="max-height: 100px;"></div>
+        </div>
+    </div>
+
+    <script>
+        let compiledAbi = null;
+        let compiledBytecode = null;
+
+        // --- SYNTAX HIGHLIGHTING LOGIC ---
+        function updateSyntax() {
+            let text = document.getElementById("editing").value;
+            let result_element = document.getElementById("highlighting-content");
+            result_element.textContent = text;
+            Prism.highlightElement(result_element);
+        }
+        function syncScroll() {
+            let edit = document.getElementById("editing");
+            let high = document.getElementById("highlighting");
+            high.scrollTop = edit.scrollTop;
+            high.scrollLeft = edit.scrollLeft;
+        }
+
+        // --- COMPILER LOGIC ---
+        async function compileCode() {
+            const code = document.getElementById('editing').value;
+            const errLog = document.getElementById('errorLog');
+            errLog.style.display = "none";
+            errLog.innerText = "";
+
+            const input = {
+                language: 'Solidity',
+                sources: { 'Contract.sol': { content: code } },
+                settings: { outputSelection: { '*': { '*': ['*'] } } }
+            };
+
+            try {
+                const output = JSON.parse(window.soljson.compile(JSON.

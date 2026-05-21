@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KHOZA.IO | Browser Compiler</title>
+    <script src="https://binaries.soliditylang.org/bin/soljson-v0.8.20+commit.a1b79465.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/solc-wrapper@1.0.1/index.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; padding: 20px; }
+        textarea { width: 100%; height: 300px; background: #000; color: #00ff00; font-family: monospace; }
+        .output { background: #333; padding: 15px; margin-top: 10px; border-radius: 5px; word-break: break-all; }
+        button { background: #ffcc00; padding: 10px 20px; border: none; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h2>🛠️ KHOZA.IO Solidity Compiler</h2>
+    <p>Paste your <code>cfw8.sol</code> code below:</p>
+    
+    <textarea id="sourceCode">
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract SimpleStorage {
+    uint256 public data;
+    function set(uint256 _data) public { data = _data; }
+}
+    </textarea>
+
+    <br><br>
+    <button id="compileBtn">Compile to ABI & Bytecode</button>
+
+    <div id="results" style="display:none;">
+        <h3>📄 ABI</h3>
+        <div id="abiOut" class="output"></div>
+        
+        <h3>🔢 Bytecode</h3>
+        <div id="bytecodeOut" class="output"></div>
+    </div>
+
+    <script>
+        document.getElementById('compileBtn').addEventListener('click', () => {
+            const btn = document.getElementById('compileBtn');
+            const source = document.getElementById('sourceCode').value;
+            
+            btn.innerText = "Compiling... Please Wait";
+            btn.disabled = true;
+
+            // 1. Initialize the wrapper
+            // Note: 'Module' is provided by the soljson script loaded in the head
+            const compiler = solc(window.Module);
+
+            // 2. Prepare the Input JSON (Standard JSON Input/Output)
+            const input = {
+                language: 'Solidity',
+                sources: {
+                    'contract.sol': { content: source }
+                },
+                settings: {
+                    outputSelection: {
+                        '*': {
+                            '*': ['abi', 'evm.bytecode']
+                        }
+                    }
+                }
+            };
+
+            // 3. Compile
+            const output = JSON.parse(compiler.compile(JSON.stringify(input)));
+
+            // 4. Extract Results
+            if (output.errors && output.errors.some(e => e.severity === 'error')) {
+                alert("Compilation Error: " + output.errors[0].message);
+                btn.disabled = false;
+                btn.innerText = "Compile to ABI & Bytecode";
+                return;
+            }
+
+            // Get the first contract found in the source
+            const contracts = output.contracts['contract.sol'];
+            const contractName = Object.keys(contracts)[0];
+            const contractData = contracts[contractName];
+
+            // 5. Display
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('abiOut').innerText = JSON.stringify(contractData.abi);
+            document.getElementById('bytecodeOut').innerText = contractData.evm.bytecode.object;
+
+            btn.innerText = "Compile to ABI & Bytecode";
+            btn.disabled = false;
+        });
+    </script>
+</body>
+</html>

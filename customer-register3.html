@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KHOZA.IO - Identity Portal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        body { background: #000; color: #00f2ff; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: #111; padding: 2rem; border: 1px solid #00f2ff; width: 420px; box-shadow: 0 0 20px rgba(0,242,255,0.2); border-radius: 5px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; background: #000; border: 1px solid #333; color: #fff; box-sizing: border-box; }
+        .id-display { background: #003333; color: #00f2ff; padding: 10px; border: 1px dashed #00f2ff; margin: 15px 0; font-size: 0.8rem; word-break: break-all; display: none; }
+        button { width: 100%; padding: 12px; background: #00f2ff; border: none; color: #000; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
+        label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 style="text-align:center">ADMIN ONBOARDING</h2>
+    
+    <label>Authentication</label>
+    <input type="email" id="email" placeholder="Email Address" oninput="updateIdentity()">
+    <input type="password" id="pass" placeholder="Password" oninput="updateIdentity()">
+    
+    <div id="idBox" class="id-display">
+        <strong>ASSIGNED SYSTEM ID:</strong><br>
+        <span id="walletAddr">Generating...</span>
+    </div>
+
+    <label>Business Profile</label>
+    <input type="text" id="firstName" placeholder=" Name">
+    <input type="text" id="deliveryAddress" placeholder="address">
+    <input type="text" id="phoneNumber" placeholder="number">
+    
+    <button id="regBtn" onclick="register()">Deploy Identity</button>
+    <p id="status" style="text-align:center; font-size: 0.75rem; color: #555;">Standby...</p>
+</div>
+
+<script>
+// 1. Configuration - Replace with your details
+//const RPC_URL = "https://eth-hoodi.g.alchemy.com/v2/apnIC4FVlS_hAusqPQkDb";
+const MASTER_KEY = "0xe8de15cf25e972c28a220f003230e577b50542dd7b0406030041428d8ab741bb"; // Must be funded with testnet ETH
+//const CONTRACT_ADDRESS = "0x27AEB9e899669A8Ad6A19460054A614e6bAcD17e";
+
+
+
+ const RPC_URL = "https://eth-hoodi.g.alchemy.com/v2/apnIC4FVlS_hAusqPQkDb";
+const CONTRACT_ADDRESS = "0x27AEB9e899669A8Ad6A19460054A614e6bAcD17e";
+const PINATA_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI4NmExODhkYy01ZGJmLTQwMjItOTliMC0wNmFiNTk4Nzg2NjMiLCJlbWFpbCI6Imtob3phbHV0aGFuZG84QGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJwaW5fcG9saWN5Ijp7InJlZ2lvbnMiOlt7ImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxLCJpZCI6IkZSQTEifSx7ImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxLCJpZCI6Ik5ZQzEifV0sInZlcnNpb24iOjF9LCJtZmFfZW5hYmxlZCI6ZmFsc2UsInN0YXR1cyI6IkFDVElWRSJ9LCJhdXRoZW50aWNhdGlvblR5cGUiOiJzY29wZWRLZXkiLCJzY29wZWRLZXlLZXkiOiJiY2M5YTA2ZmU0ZDM5YjZmMDg4ZCIsInNjb3BlZEtleVNlY3JldCI6ImE3YTY2NWI2ODBiYWJmNjIyNmZkYjdkNGIzMTc4Y2JhMGVmZjUwNTBkNzhlNjg3ZDZhODUxMmY3Y2I0MGU5NTUiLCJleHAiOjE4MDg2NjA3OTF9.KCYCXSVX8-qNzoeXVYsDt3Fn1OZeEAnkSC5cLOxthkE";
+
+// 1. DYNAMIC WALLET LOADING
+// 1. DYNAMIC WALLET LOADING
+
+
+// Pinata API Keys (Get these for free at pinata.cloud)
+//const PINATA_JWT = "d62d60c7b04b6416be93";
+// ABI for the KhozaLogistics functions
+const ABI = [
+    "function registerCustomer(string _email, string _firstName, string _deliveryAddress, uint256 _phoneNumber) public",
+    "function getRole(address _user) public view returns (string memory)"
+]; 
+    // 1. Real-time ID Generation
+    function updateIdentity() {
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('pass').value;
+        const idBox = document.getElementById('idBox');
+        const walletAddr = document.getElementById('walletAddr');
+
+        if(email.length > 5 && pass.length > 5) {
+            // Generate the address from the credentials
+            const address = ethers.computeAddress(ethers.id(email + pass + "KHOZA_SALT"));
+            walletAddr.innerText = address;
+            idBox.style.display = "block";
+        } else {
+            idBox.style.display = "none";
+        }
+    }
+
+
+  async function register() {
+    const status = document.getElementById('status');
+    try {
+        // 1. Collect Data
+        const email = document.getElementById('email').value.trim();
+        const firstName = document.getElementById('firstName').value.trim();
+        const address = document.getElementById('deliveryAddress').value.trim();
+        const pass = document.getElementById('pass').value;
+        const phone = BigInt(document.getElementById('phoneNumber').value.replace(/\D/g,''));
+
+        // 2. Generate the Customer's Personal Wallet
+        const seed = email.toLowerCase() + pass;
+        const userWallet = new ethers.Wallet(ethers.keccak256(ethers.toUtf8Bytes(seed)));
+        const provider = new ethers.JsonRpcProvider(RPC_URL);
+        const customerSigner = userWallet.connect(provider);
+
+        status.innerText = "Verifying identity on ledger...";
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, customerSigner);
+
+        // 3. Check if already registered
+        const role = await contract.getRole(customerSigner.address);
+        if (role === "customer") {
+            status.innerText = "Welcome back! Accessing shop...";
+            localStorage.setItem("user_session_key", userWallet.privateKey);
+            localStorage.setItem("user_role", "customer");
+            setTimeout(() => window.location.href = "shop.html", 1500);
+            return;
+        }
+
+        // 4. FUNDING (The Fix)
+        // We must send ETH to customerSigner.address, NOT CONTRACT_ADDRESS
+        status.innerText = "Allocating gas for registration...";
+        const master = new ethers.Wallet(MASTER_KEY, provider);
+        const balance = await provider.getBalance(customerSigner.address);
+
+        if (balance < ethers.parseEther("0.002")) {
+            console.log("Funding wallet:", customerSigner.address);
+            const fundTx = await master.sendTransaction({
+                to: customerSigner.address, // Corrected: sending to user
+                value: ethers.parseEther("0.005") 
+            });
+            await fundTx.wait();
+            status.innerText = "Gas fueling complete.";
+        }
+
+        // 5. ON-CHAIN REGISTRATION
+        status.innerText = "Writing to blockchain...";
+        const tx = await contract.registerCustomer(
+            email,
+            firstName,
+            address,
+            phone,
+            { gasLimit: 400000 } // High gas limit to prevent execution revert
+        );
+
+        status.innerText = "Mining transaction...";
+        await tx.wait();
+
+        // 6. SAVE SESSION
+        localStorage.setItem("user_session_key", userWallet.privateKey);
+        localStorage.setItem("user_role", "customer");
+
+        status.innerText = "Registration Success!";
+        setTimeout(() => window.location.href = "shop.html", 2000);
+
+    } catch (e) {
+        console.error("Full Error:", e);
+        // Display a more helpful error if the master wallet is empty
+        if (e.message.includes("insufficient funds")) {
+            status.innerText = "Error: Master Wallet (Gas Tank) is empty.";
+        } else {
+            status.innerText = "Error: Registration failed. See console.";
+        }
+    }
+}
+
+  // 2. Blockchain Submission
+    /**async function submitToBlockchain() {
+           const status = document.getElementById('status');
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('password').value;
+        // Collect inputs 
+         const name = document.getElementById('firstName').value;
+        const address = document.getElementById('deliveryAddress').value;
+      //  const holder = document.getElementById('accHolder').value;
+         const num = document.getElementById('phoneNumber').value;
+
+
+        try {
+            
+                // Generate deterministic wallet
+                const userWallet = new ethers.Wallet(ethers.keccak256(ethers.toUtf8Bytes(email + pass)));
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const master = new ethers.Wallet(MASTER_KEY, provider);
+
+                status.innerText = "Provisioning Gas Fees...";
+                const fundTx = await master.sendTransaction({
+                    to: userWallet.address,
+                    value: ethers.parseEther("0.002") // Funding the new wallet
+                });
+                await fundTx.wait();
+
+
+                const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, userWallet.connect(provider));
+
+
+            const tx = await contract.registerCustomer(
+                document.getElementById('email').value,
+                document.getElementById('firstName').value,
+                document.getElementById('deliveryAddress').value,
+                document.getElementById('phoneNumber').value
+            );
+            await tx.wait();
+
+               //status.innerText = "SUCCESS: Profile linked to " + userWallet.address;
+             // SAVE KEY FOR INVENTORY
+               // localStorage.setItem("user_session_key", userWallet.privateKey);
+
+
+                // Inside your registration success block:
+                await tx.wait();
+                 localStorage.setItem("user_session_key", userWallet.privateKey);
+                   localStorage.setItem("user_role", "customer");
+
+                setTimeout(() => window.location.href = "shop.html", 2000);
+
+
+                        // 1. Get the current user's wallet address
+    // Even without MetaMask "Sign-in", we check the browser's provider for the account
+    if (!window.ethereum) {
+        window.location.href = 'shop.html'; // Default for guest
+        return;
+    }
+
+    //const provider = new ethers.BrowserProvider(window.ethereum);
+    const accounts = await provider.listAccounts();
+    
+    if (accounts.length === 0) {
+        window.location.href = 'shop.html';
+        return;
+    }
+
+        } catch (e) {
+            status.innerText = "Error: " + (e.reason || e.message);
+        }
+    }**/
+</script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details | KHOZA.IO</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        body { background: #000; color: #00f2ff; font-family: 'Courier New', monospace; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: #111; border: 1px solid #00f2ff; padding: 30px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,242,255,0.1); }
+        .back-btn { color: #00f2ff; text-decoration: none; font-size: 0.9rem; border: 1px solid #00f2ff; padding: 5px 10px; border-radius: 4px; transition: 0.3s; display: inline-block; margin-bottom: 20px; }
+        .back-btn:hover { background: #00f2ff; color: #000; }
+        
+        .product-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; }
+        
+        /* Fixed Image Container */
+        .product-image { 
+            width: 100%; 
+            aspect-ratio: 1 / 1; 
+            border: 1px dashed #00f2ff; 
+            background: #050505; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden;
+            position: relative;
+        }
+        .product-image img { 
+            max-width: 95%; 
+            max-height: 95%; 
+            object-fit: contain; 
+        }
+        .no-data { color: #555; font-size: 0.8rem; text-align: center; padding: 20px; }
+
+        h1 { margin: 0; text-transform: uppercase; letter-spacing: 2px; color: #fff; }
+        .price { font-size: 2.5rem; color: #00ff88; margin: 20px 0; }
+        .meta { color: #888; font-size: 0.85rem; margin-bottom: 8px; line-height: 1.4; }
+        .label { color: #00f2ff; font-weight: bold; }
+        
+        .buy-button { width: 100%; padding: 18px; background: #00f2ff; color: #000; border: none; font-weight: bold; font-size: 1.1rem; cursor: pointer; margin-top: 25px; transition: 0.4s; }
+        .buy-button:hover { background: #fff; box-shadow: 0 0 20px #00f2ff; }
+
+        /* Integrated Debugger Window */
+        #debugWindow { 
+            margin-top: 30px; 
+            background: #000; 
+            border: 1px solid #333; 
+            padding: 15px; 
+            font-size: 0.75rem; 
+            color: #666; 
+            max-height: 150px; 
+            overflow-y: auto;
+        }
+        .debug-success { color: #00ff88; }
+        .debug-error { color: #ff4444; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <a href="shop.html" class="back-btn"><- RETURN TO MARKETPLACE</a>
+        
+        <div id="productDetail">
+            <p>Initializing Blockchain Handshake...</p>
+        </div>
+
+        <div id="debugWindow">
+            > TERMINAL READY: Waiting for data...
+        </div>
+    </div>
+
+    <script>
+        const RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+        const CONTRACT_ADDRESS = "0x0E763c0d3bCdFa4f744B9DE3355B67B3A9b262Ba";
+        const GATEWAY = "https://gateway.pinata.cloud/ipfs/";
+
+        const ABI = [
+            {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"products","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"admin","type":"address"},{"internalType":"string","name":"itemCode","type":"string"},{"internalType":"string","name":"itemName","type":"string"},{"internalType":"uint256","name":"retailPrice","type":"uint256"},{"internalType":"uint256","name":"stockPrice","type":"uint256"},{"internalType":"string","name":"colour","type":"string"},{"internalType":"uint256","name":"quantityAvailable","type":"uint256"},{"internalType":"uint256","name":"totalSold","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"_pId","type":"uint256"}],"name":"getProductImages","outputs":[{"internalType":"string[]","name":"","type":"string[]"}],"stateMutability":"view","type":"function"}
+        ];
+
+        function log(msg, type = "") {
+            const win = document.getElementById('debugWindow');
+            const colorClass = type === "error" ? "debug-error" : (type === "success" ? "debug-success" : "");
+            win.innerHTML += `<div class="${colorClass}">> ${msg}</div>`;
+            win.scrollTop = win.scrollHeight;
+        }
+
+        async function loadDetails() {
+            const display = document.getElementById('productDetail');
+            const productId = localStorage.getItem("selected_product_id");
+
+            if (!productId) {
+                log("Error: No selected_product_id found in LocalStorage", "error");
+                display.innerHTML = "<h2>ERROR: NO PRODUCT ID DETECTED</h2>";
+                return;
+            }
+
+            log(`Searching for Product ID: ${productId}...`);
+
+            try {
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+
+                // Parallel data fetch
+                const [p, rawImages] = await Promise.all([
+                    contract.products(productId),
+                    contract.getProductImages(productId)
+                ]);
+
+                log(`Blockchain Response: ${p.itemName} received.`, "success");
+                log(`Images Array Length: ${rawImages.length}`);
+
+                // Resolve IPFS links
+                const images = rawImages.map(img => {
+                    if (!img) return null;
+                    return img.startsWith('http') ? img : `${GATEWAY}${img}`;
+                }).filter(x => x !== null);
+
+                const finalImg = (images.length > 0) ? images[0] : null;
+
+                display.innerHTML = `
+                    <div class="product-grid">
+                        <div class="product-image">
+                            ${finalImg 
+                                ? `<img src="${finalImg}" alt="${p.itemName}" onerror="log('Image load failed at Gateway', 'error')">` 
+                                : '<div class="no-data">NO SCHEMATIC FOUND IN BLOCKCHAIN</div>'}
+                        </div>
+                        <div class="product-info">
+                            <p class="meta"><span class="label">ID_NODE:</span> ${p.itemCode}</p>
+                            <h1>${p.itemName}</h1>
+                            <p class="price">R${p.retailPrice.toString()}</p>
+                            
+                            <p class="meta"><span class="label">COLORWAY:</span> ${p.colour}</p>
+                            <p class="meta"><span class="label">QUANTITY:</span> ${p.quantityAvailable.toString()} UNITS</p>
+                            <p class="meta"><span class="label">STATION:</span> ${p.admin.substring(0, 18)}...</p>
+                            
+                            <button class="buy-button" onclick="initiatePurchase(${productId})">INITIALIZE SECURE PURCHASE</button>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                log(`Critical Sync Error: ${err.message}`, "error");
+                display.innerHTML = "<p>FATAL ERROR: BLOCKCHAIN SYNC FAILED</p>";
+            }
+        }
+
+        function initiatePurchase(id) {
+            log(`Purchase Request for ID ${id} sent to secure queue...`, "success");
+            alert("This feature requires a connected Web3 Wallet (Coming Soon).");
+        }
+
+        window.onload = loadDetails;
+    </script>
+</body>
+</html>
