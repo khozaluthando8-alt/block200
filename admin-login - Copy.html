@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KHOZA.IO - Admin Login</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        body { background: #000; color: #00f2ff; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: #111; padding: 2.5rem; border: 1px solid #00f2ff; width: 380px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,242,255,0.1); }
+        h2 { text-align: center; text-transform: uppercase; letter-spacing: 2px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #333; color: #fff; box-sizing: border-box; outline: none; }
+        input:focus { border-color: #00f2ff; }
+        button { width: 100%; padding: 14px; background: #00f2ff; border: none; color: #000; font-weight: bold; cursor: pointer; margin-top: 15px; transition: 0.3s; }
+        button:hover { background: #fff; }
+        #status { font-size: 0.85rem; margin-top: 15px; text-align: center; color: #ff3333; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Admin Login</h2>
+        <input type="email" id="email" placeholder="Email Address">
+        <input type="password" id="pass" placeholder="Password">
+        <button onclick="handleLogin()">Access Terminal</button>
+        <p id="status"></p>
+        <div style="text-align: center; margin-top: 15px; font-size: 0.8rem;">
+            New admin? <a href="register4.html" style="color: #00f2ff;">Register Identity</a>
+        </div>
+    </div>
+
+    <script>
+        const CONTRACT_ADDRESS = "0x5CE863517D9dafca81cEe5FaC6daa37F476eB4Ef";
+        const RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+        const ABI = ["function isAdmin(address) view returns (bool)"];
+
+        async function handleLogin() {
+            const status = document.getElementById('status');
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('pass').value;
+
+            if (!email || !pass) {
+                status.innerText = "Error: Credentials missing.";
+                return;
+            }
+
+            status.style.color = "#00f2ff";
+            status.innerText = "Reconstructing Identity...";
+
+            try {
+                // 1. Re-generate the unique wallet from the same email/pass combination
+                const seed = email.toLowerCase().trim() + pass;
+                const userWallet = new ethers.Wallet(ethers.keccak256(ethers.toUtf8Bytes(seed)));
+                
+                // 2. Connect to the blockchain to verify
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+
+                // 3. Check if this wallet address is registered as an Admin
+                const isRegistered = await contract.isAdmin(userWallet.address);
+
+                if (isRegistered) {
+                    // SUCCESS: Save the key and redirect
+                    localStorage.setItem("admin_session_key", userWallet.privateKey);
+                    //localStorage.setItem("user_session_key", userWallet.privateKey);
+                    status.innerText = "Verified. Entering System...";
+                    setTimeout(() => {
+                        window.location.href = "admin-inventry3.html";
+                    }, 1500);
+                } else {
+                    status.style.color = "#ff3333";
+                    status.innerText = "Access Denied: Identity not found on ledger.";
+                }
+
+            } catch (e) {
+                console.error(e);
+                status.style.color = "#ff3333";
+                status.innerText = "System Error: Unable to reach blockchain.";
+            }
+        }
+    </script>
+</body>
+</html>

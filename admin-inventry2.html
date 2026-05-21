@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Control | KHOZA.IO</title>
+  <link rel="stylesheet" href="style4.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body class="admin-panel">
+
+    <header class="admin-header">
+    <h2>Inventory Management</h2>
+    <p>Logged in as: <strong id="storeDisplayName">Loading Profile...</strong></p>
+</header>
+
+  <nav class="main-nav">
+    <img src="Gemini_Generated_Image_88f02288f02288f0.jpg" alt="CFW Logo" class="nav-logo">
+    <div class="nav-links">
+      <a href="admin-dashboard.html">Orders</a>
+      <a href="admin-inventory2.html" class="active">Inventory</a>
+      <a href="logout.html" class="track-btn" style="background: #dc3545;">Logout</a>
+    </div>
+  </nav>
+
+  <main class="dashboard-container">
+   <form id="addItemForm">
+    <div class="form-group">
+        <label>Item Identification</label>
+        <input type="text" name="curf_token" id="itemCode" placeholder="e.g., TS-001" required />
+        <input type="text" name="curf_token" id="itemName" placeholder="Product Name" required />
+    </div>
+
+    <div class="form-group">
+        <label>Define Color Palette (Comma separated)</label>
+        <input type="text" name="curf_token" id="colorNames" placeholder="e.g. Red, Blue, Black" required>
+    </div>
+
+    <div class="form-group">
+        <label>Pricing Structure (ZAR)</label>
+        <div style="display: flex; gap: 10px;">
+            <input type="number" id="retailPrice" placeholder="Retail Price (e.g. 250)" required style="flex: 1;"/>
+            <input type="number" id="stockPrice" placeholder="Stock Price (3+ items)" required style="flex: 1;"/>
+        </div>
+        <small>Stock price applies automatically when quantity is 3 or more.</small>
+    </div>
+      <a href="admin-dashboard3.html" style="color:#dc3545">ADMIN</a>
+
+    <div class="form-group">
+        <label>Size Range Per Color</label>
+        <div id="sizeCheckboxes" class="size-grid">
+            <label><input type="checkbox" class="size-opt" value="S"> S</label>
+            <label><input type="checkbox" class="size-opt" value="M"> M</label>
+            <label><input type="checkbox" class="size-opt" value="L"> L</label>
+            <label><input type="checkbox" class="size-opt" value="XL"> XL</label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Initial Stock per Variation</label>
+        <input type="number" id="qtyPerSize" placeholder="10" required />
+    </div>
+
+<form id="addItemForm">
+    <div class="image-upload-section">
+        <label>Product Images (Saved to IPFS)</label>
+        <input type="file" name="curf_token" class="product-image-input" accept="image/*" />
+        <input type="file" name="curf_token" class="product-image-input" accept="image/*" />
+        <input type="file" name="curf_token"class="product-image-input" accept="image/*" />
+        <input type="file"name="curf_token" class="product-image-input" accept="image/*" />
+    </div>
+
+    <button type="submit">Upload Product & Sync Chain</button>
+</form>
+    
+    <button type="submit">Upload Product & Sync Chain</button>
+</form>
+  </main>
+
+  <script src="inventory-relay2.js"></script>
+</body>
+</html>

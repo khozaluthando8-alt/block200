@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain IPFS Inventory Manager</title>
+    <style>
+        :root { --primary: #2563eb; --secondary: #64748b; --bg: #f8fafc; --card: #ffffff; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 20px; color: #1e293b; }
+        .grid { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .full-width { grid-column: span 2; }
+        h2, h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 10px; }
+        button:hover { opacity: 0.9; }
+        .ipfs-box { background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px dashed var(--primary); margin: 10px 0; }
+        #resultDisplay { background: #f1f5f9; padding: 20px; border-radius: 8px; min-height: 150px; line-height: 1.8; }
+        .status-tag { font-weight: bold; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; }
+        img { max-width: 100%; border-radius: 8px; margin-top: 15px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+
+<div class="grid">
+    <div class="card full-width">
+        <h2>🔐 1. Authentication</h2>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <input id="privateKey" type="password" placeholder="Enter Private Key (Sepolia Testnet)" style="flex: 2;">
+            <button onclick="connectWallet()" style="flex: 1; margin: 0;">Login</button>
+        </div>
+        <p id="walletAddress" style="margin: 10px 0 0; font-family: monospace; font-size: 0.9em; color: var(--secondary);">Status: Not Connected</p>
+    </div>
+
+    <div class="card">
+        <h3>📦 2. Stock Information</h3>
+        
+        <div class="ipfs-box">
+            <label><strong>Step A: Upload Large File to IPFS</strong></label>
+            <input type="file" id="fileInput">
+            <button onclick="uploadToIPFS()" style="background: #059669;">Upload to IPFS</button>
+            <small id="ipfsStatus" style="word-break: break-all;"></small>
+        </div>
+
+        <label>Step B: Fill Details</label>
+        <input id="name" placeholder="Item Name">
+        <input id="id" type="number" placeholder="Unique ID">
+        <input id="price" type="number" placeholder="Price (Wei)">
+        <input id="size" placeholder="Size">
+        <input id="colour" placeholder="Colour">
+        <input id="code" placeholder="Item Code">
+        <input id="image" placeholder="IPFS Hash (Auto-filled)" readonly>
+        
+        <button onclick="writeData()">Push to Blockchain</button>
+        <p id="txStatus" style="font-size: 0.85em; color: var(--secondary);"></p>
+    </div>
+
+    <div class="card">
+        <h3>🔍 3. Retrieve & Update</h3>
+        <p>This pulls data linked to your current connected wallet.</p>
+        <button onclick="readData()" style="background: var(--secondary);">Pull from Blockchain</button>
+        
+        <div id="resultDisplay">
+            <em>No record loaded. Click "Pull" to fetch your data.</em>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+<script>
+    // --- CONFIGURATION ---
+    let signer;
+    let contract;
+    
+    // 1. Replace with your actual deployed contract address
+    const contractAddress = "0xa3cc70eF41abae4ed5344E822De42E46f031B72C";
+    
+    // 2. Replace with your Pinata Keys (https://app.pinata.cloud/keys)
+    const pinataApiKey = "d62d60c7b04b6416be93";
+    const pinataSecretKey = "a26723270730c8effdf92ab9a46afcf03c5bcda00a99427f6bc52761d9604b0e";
+
+    const abi = [
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_image",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_price",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_size",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_Item_code",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_colour",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_id",
+        "type": "uint256"
+      }
+    ],
+    "name": "addData",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getData",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "list",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "size",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "colour",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "Item_code",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "image",
+        "type": "string"
+      },
+      {
+        "internalType": "bool",
+        "name": "isActive",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+    // --- FUNCTIONS ---
+
+    async function connectWallet() {
+        const pk = document.getElementById("privateKey").value;
+        if (!pk) return alert("Enter Private Key!");
+        try {
+            
+             const provider = new ethers.providers.JsonRpcProvider(
+           "https://eth-sepolia.g.alchemy.com/v2/apnIC4FVlS_hAusqPQkDb"
+            );
+            signer = new ethers.Wallet(pk, provider);
+            contract = new ethers.Contract(contractAddress, abi, signer);
+            document.getElementById("walletAddress").innerText = "Connected: " + signer.address;
+            document.getElementById("walletAddress").style.color = "green";
+        } catch (e) { alert("Login Error: " + e.message); }
+    }
+
+    async function uploadToIPFS() {
+        const fileInput = document.getElementById('fileInput');
+        if (!fileInput.files[0]) return alert("Select a file first!");
+        
+        const status = document.getElementById('ipfsStatus');
+        status.innerText = "⏳ Uploading to IPFS...";
+        
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        try {
+            const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+                method: "POST",
+                headers: { 'pinata_api_key': pinataApiKey, 'pinata_secret_api_key': pinataSecretKey },
+                body: formData
+            });
+            const data = await res.json();
+            document.getElementById("image").value = data.IpfsHash;
+            status.innerText = "✅ Success! Hash: " + data.IpfsHash;
+        } catch (e) { status.innerText = "❌ IPFS Error: " + e.message; }
+    }
+
+    async function writeData() {
+        if (!contract) return alert("Connect Wallet first!");
+        const txStatus = document.getElementById("txStatus");
+        txStatus.innerText = "⏳ Processing Transaction...";
+
+        try {
+            const tx = await contract.addData(
+                document.getElementById("name").value,
+                document.getElementById("image").value,
+                document.getElementById("price").value,
+                document.getElementById("size").value,
+                document.getElementById("code").value,
+                document.getElementById("colour").value,
+                document.getElementById("id").value
+            );
+            await tx.wait();
+            txStatus.innerText = "✅ Transaction Confirmed!";
+        } catch (e) { txStatus.innerText = "❌ Error: " + e.message; }
+    }
+
+    async function readData() {
+        if (!contract) return alert("Connect Wallet first!");
+        const display = document.getElementById("resultDisplay");
+        display.innerHTML = "⏳ Fetching...";
+
+        try {
+            const data = await contract.list(signer.address);
+            if (!data.isActive) {
+                display.innerHTML = "<em>No record found for this wallet.</em>";
+                return;
+            }
+
+            const ipfsLink = `https://gateway.pinata.cloud/ipfs/${data.image}`;
+            display.innerHTML = `
+                <strong>Name:</strong> ${data.name}<br>
+                <strong>ID:</strong> ${data.id}<br>
+                <strong>Price:</strong> ${data.price} Wei<br>
+                <strong>Size:</strong> ${data.size}<br>
+                <strong>Code:</strong> ${data.Item_code}<br>
+                <strong>IPFS File:</strong> <a href="${ipfsLink}" target="_blank">View File</a><br>
+                <img src="${ipfsLink}" alt="Stock Image">
+            `;
+        } catch (e) { display.innerHTML = "❌ Error: " + e.message; }
+    }
+</script>
+
+</body>
+</html>

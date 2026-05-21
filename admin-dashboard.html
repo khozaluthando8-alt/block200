@@ -1,0 +1,131 @@
+<DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; 
+    style-src 'self' 'unsafe-inline'; 
+    connect-src 'self' https://ethereum-sepolia-rpc.publicnode.com https://eth-sepolia.g.alchemy.com;
+    form-action 'self' https://my.payfast.io https://www.payfast.co.za;
+    img-src 'self' data: https://my.payfast.io https://www.payfast.co.za;
+   ">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boutique Management System</title>
+  <link rel="stylesheet" href="style.css" />
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+
+</head>
+<body>
+  <nav class="main-nav">
+    <img src="Gemini_Generated_Image_88f02288f02288f0.jpg" alt="CFW Logo" class="nav-logo">
+    <div class="nav-links">
+      <a href="admin-dashboard.html">Orders</a>
+      <a href="admin-inventry2.html" class="active">Inventory</a>
+      <a href="logout.html" class="track-btn" style="background: #dc3545;">Logout</a>
+    </div>
+  </nav>
+  <div class="tabs">
+    <button onclick="showSection('delivery')">Delivery Requests</button>
+    <button onclick="showSection('orders')">Orders</button>
+  </div>
+
+
+<section id="inventory">
+  <h2>📦 Stock Management</h2>
+  <form id="inventoryForm">
+    <input type="text" name="item_code" placeholder="Item Code" required />
+    <input type="text" name="colour" placeholder="Colour" required />
+    <input type="text" name="size" placeholder="Size" required />
+     <label for="item_image">Upload Item Photo:</label>
+     <input type="file" id="item_image" accept="image/*" required />
+       <label for="item_image">Upload Item Photo:</label>
+    <input type="number" name="quantity_available" placeholder="Total Stock Quantity" required />
+    <button type="submit">Update Inventory</button>
+  </form>
+</section>
+
+<div class="sales-tracker-container">
+    <div class="stat-card">
+        <h3>Total Items Sold</h3>
+        <p id="totalItems">0</p>
+    </div>
+    <div class="stat-card">
+        <h3>Total Revenue (ZAR)</h3>
+        <p id="totalRevenue">R 0.00</p>
+    </div>
+    <div class="stat-card">
+        <h3>Live Ledger Status</h3>
+        <p id="ledgerStatus">Syncing...</p>
+    </div>
+</div>
+
+<input type="number" name="quantity_ordered" placeholder="Quantity to Buy" min="1" required />
+
+<input type="tel" name="customer_phone" placeholder="Customer Phone Number (e.g. 081...)" required />
+
+  <!-- Delivery Section -->
+  <section id="delivery" class="active">
+    <h2>🚚 Delivery Requests</h2>
+    <form id="deliveryForm">
+      <input type="text" name="item_code" placeholder="Item Code" required />
+      <input type="text" name="customer_name" placeholder="Customer Name" required />
+      <input type="text" name="colour" placeholder="Colour" required />
+      <input type="text" name="size" placeholder="Size" required />
+      <input type="text" name="location" placeholder="Location" required />
+      <input type="date" name="date" required />
+      <input type="time" name="time" required />
+      <input type="number" name="amount" placeholder="Amount (R)" required />
+      <button type="submit">Save Delivery</button>
+    </form>
+    <table id="deliveryTable">
+      <thead><tr><th>Item</th><th>Name</th><th>Colour</th><th>Size</th><th>Location</th><th>Date</th><th>Time</th><th>Amount</th></tr></thead>
+      <tbody></tbody>
+    </table>
+ <section id="admin-orders-dashboard">
+  <h2>📋 Incoming Orders & Verification</h2>
+  
+  <div class="dashboard-stats">
+    <p>Pending Verification: <span id="pending-count">0</span></p>
+  </div>
+
+  <table id="adminOrderTable">
+    <thead>
+      <tr>
+        <th>Reference</th>
+        <th>Customer Details</th>
+        <th>Location</th>
+        <th>Order Items</th>
+        <th>Payment Method</th>
+        <th>Total Amount</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="adminOrderBody">
+      </tbody>
+  </table>
+</section>
+  <section id="company-settings">
+  <h2>Settings: Company Profile</h2>
+  <form id="profileForm">
+    <input type="text" id="compName" placeholder="Company Name (e.g., KHOZA.IO)" required />
+    <textarea id="compDesc" placeholder="Short Company Description..."></textarea>
+    <input type="text" id="logoUrl" placeholder="Logo Image URL" />
+    <button type="submit">Save Branding</button>
+  </form>
+</section>
+
+<td>
+  <select onchange="updateStatus(${row.id}, this.value)">
+    <option value="Pending" ${row.status === 'Pending' ? 'selected' : ''}>Pending</option>
+    <option value="Dispatched" ${row.status === 'Dispatched' ? 'selected' : ''}>Dispatched</option>
+    <option value="Delivered" ${row.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+  </select>
+</td>
+<div id="userDisplay"></div>
+<button onclick="logout()">Secure Logout</button>
+    <script src="sales-stats.js"></script>
+        <script src="admin-dashboard.js"></script>
+
+  </body>
+</html>

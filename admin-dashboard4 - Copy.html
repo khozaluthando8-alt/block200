@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="admin.css">
+  <title>KHOZA.IO | Management Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body>
+
+  <header class="shop-header">
+    <img src="301015489_443828151102927_1957794053294967618_n.png" alt="LOGO" class="logo">
+    <div class="nav-links">
+      <a href="#" onclick="showSection('orders')">ORDERS</a>
+      <a href="#" onclick="showSection('inventory')">STOCK</a>
+      <a href="#" onclick="showSection('delivery')">LOGISTICS</a>
+      <a href="logout.html" style="color:#dc3545">LOGOUT</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Statistics Overview -->
+    <div class="sales-tracker-container">
+        <div class="stat-card">
+            <h3>Items Sold</h3>
+            <p id="totalItems">0</p>
+        </div>
+        <div class="stat-card">
+            <h3>Revenue</h3>
+            <p id="totalRevenue">R 0.00</p>
+        </div>
+        <div class="stat-card">
+            <h3>Ledger</h3>
+            <p id="ledgerStatus" style="font-size: 0.8rem; color: #28a745;">ACTIVE</p>
+        </div>
+    </div>
+
+    <div class="tabs">
+      <button id="btn-orders" onclick="showSection('orders')" class="active">Orders</button>
+      <button id="btn-inventory" onclick="showSection('inventory')">Inventory</button>
+      <button id="btn-delivery" onclick="showSection('delivery')">Logistics</button>
+    </div>
+
+    <!-- Incoming Orders Section: Updated for detailed tracking -->
+    <section id="orders" class="glass-panel active">
+      <h2 style="margin-top:0">📋 Incoming Logistics Feed</h2>
+      <div class="table-scroll">
+        <table id="adminOrderTable">
+          <thead>
+            <tr>
+              <th>REF #</th>
+              <th>DESCRIPTION (SIZE/COLOUR)</th>
+              <th>QTY</th>
+              <th>DELIVERY ADDRESS</th>
+              <th>TOTAL</th>
+              <th>STATUS</th>
+              <th>ACTION</th>
+            </tr>
+          </thead>
+          <tbody id="adminOrderBody">
+            <!-- OrderPlaced event data injected here via admin-dashboard.js -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Inventory Section: Synchronized with cfw14_3.sol -->
+    <section id="inventory" class="glass-panel">
+      <h2 style="margin-top:0">📦 Stock Management</h2>
+      <form id="inventoryForm">
+        <input type="text" id="itemCode" placeholder="Item Code (e.g. KHO-001)" required />
+        <input type="text" id="itemName" placeholder="Product Name" required />
+        <div style="display:flex; gap:10px">
+            <input type="text" id="pColour" placeholder="Colour" required />
+            <input type="number" id="pRetail" placeholder="Retail Price (R)" required />
+            <input type="number" id="pStock" placeholder="Bulk Price (R)" required />
+        </div>
+        <input type="number" id="pQty" placeholder="Total Stock Quantity" required />
+        <label style="font-size: 0.7rem; color: #888;">Product Image URL (IPFS/Gateway)</label>
+        <input type="text" id="pImg" placeholder="https://gateway.pinata.cloud/ipfs/..." required />
+        <button type="button" onclick="addNewProduct()" class="action-btn">UPDATE LEDGER STOCK</button>
+      </form>
+    </section>
+
+    <!-- Logistics Section[cite: 15] -->
+    <section id="delivery" class="glass-panel">
+      <h2 style="margin-top:0">🚚 Delivery Management</h2>
+      <div class="table-scroll">
+        <table id="deliveryTable">
+          <thead>
+            <tr>
+                <th>REF #</th>
+                <th>COURIER</th>
+                <th>DESTINATION</th>
+                <th>STATUS</th>
+                <th>ACTION</th>
+            </tr>
+          </thead>
+          <tbody id="deliveryBody">
+            <!-- Logistics tracking data -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="shop-footer">
+      <p>&copy; 2026 KHOZA.IO - Management Dashboard [Durban/Pinetown Node]</p>
+  </footer>
+
+  <script src="admin-dashboard.js"></script> 
+</body>
+</html>

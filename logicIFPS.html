@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Manager Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #64748b;
+            --success: #22c55e;
+            --bg: #f8fafc;
+            --card: #ffffff;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #1e293b; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .header { grid-column: span 2; background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card { background: var(--card); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2, h3 { margin-top: 0; color: var(--primary); }
+        input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+        .status-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 0.9em; }
+        #status { font-weight: bold; color: var(--secondary); }
+        #resultDisplay { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-top: 15px; min-height: 100px; }
+        .full-width { grid-column: span 2; }
+        img { max-width: 100%; border-radius: 8px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>🔐 Wallet Access</h2>
+        <input id="privateKey" type="password" placeholder="Enter Private Key (Testnet Only)">
+        <div class="status-bar">
+            <button onclick="connectWallet()" style="width: 200px;">Connect Wallet</button>
+            <div>
+                Status: <span id="status">Disconnected</span><br>
+                <small id="walletAddress">No address linked</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📦 Manage Stock</h3>
+        <p><small>Updating an existing record will overwrite the old data.</small></p>
+        <input id="name" placeholder="Item Name">
+        <input id="id" type="number" placeholder="Unique ID [cite: 5]">
+        <input id="price" type="number" placeholder="Price (in Wei)">
+        <input id="size" placeholder="Size (e.g. Small, Large) [cite: 2]">
+        <input id="colour" placeholder="Colour">
+        <input id="code" placeholder="Item Code">
+        <input id="image" placeholder="Image URL">
+        <button onclick="writeData()">Push to Blockchain</button>
+    </div>
+
+    <div class="card">
+        <h3>🔍 View Record</h3>
+        <p><small>Retrieve the current profile stored for your wallet address.</small></p>
+        <button onclick="readData()" style="background: var(--secondary);">Pull from Blockchain</button>
+        
+        <div id="resultDisplay">
+            <em>No data loaded.</em>
+        </div>
+    </div>
+</div>
+
+
+<input type="file" id="fileInput">
+<button onclick="uploadToIPFS()">Upload to IPFS</button>
+<p id="ipfsStatus"></p>
+
+<script src="logic4.js"></script>
+
+</body>
+</html>

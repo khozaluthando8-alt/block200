@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; 
+    style-src 'self' 'unsafe-inline'; 
+    connect-src 'self' https://ethereum-sepolia-rpc.publicnode.com https://eth-sepolia.g.alchemy.com;
+    form-action 'self' https://my.payfast.io https://www.payfast.co.za;
+    img-src 'self' data: https://my.payfast.io https://www.payfast.co.za;
+   ">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+       <link rel="stylesheet" href="admin.css">
+
+  <title>KHOZA.IO | Management Dashboard</title>
+  
+  <!-- Matching Shop Styling -->
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body>
+
+  <header class="shop-header">
+    <img src="301015489_443828151102927_1957794053294967618_n.png" alt="LOGO" class="logo">
+    <div class="nav-links">
+      <a href="#" onclick="showSection('orders')">ORDERS</a>
+      <a href="#" onclick="showSection('inventory')">STOCK</a>
+      <a href="#" onclick="showSection('delivery')">LOGISTICS</a>
+      <a href="logout.html" style="color:#dc3545">LOGOUT</a>
+
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Sales Tracker Stats -->
+    <div class="sales-tracker-container">
+        <div class="stat-card">
+            <h3>Items Sold</h3>
+            <p id="totalItems">0</p>
+        </div>
+        <div class="stat-card">
+            <h3>Revenue</h3>
+            <p id="totalRevenue">R 0.00</p>
+        </div>
+        <div class="stat-card">
+            <h3>Ledger</h3>
+            <p id="ledgerStatus" style="font-size: 0.8rem;">SYNCED</p>
+        </div>
+    </div>
+
+    <div class="tabs">
+      <button id="btn-orders" onclick="showSection('orders')" class="active">Orders</button>
+      <button id="btn-inventory" onclick="showSection('inventory')">Inventory</button>
+      <button id="btn-delivery" onclick="showSection('delivery')">Logistics</button>
+      <button id="btn-settings" onclick="showSection('settings')">Settings</button>
+    </div>
+
+    <!-- Inventory Section -->
+    <section id="inventory" class="glass-panel">
+      <h2 style="margin-top:0">📦 Stock Management</h2>
+      <form id="inventoryForm">
+        <input type="text" name="item_code" placeholder="Item Code (e.g. KHO-001)" required />
+        <input type="text" name="itemName" placeholder="Product Name" required />
+        <div style="display:flex; gap:10px">
+            <input type="text" name="colour" placeholder="Colour" required />
+            <input type="text" name="size" placeholder="Size" required />
+        </div>
+        <input type="number" name="retailPrice" placeholder="Retail Price (R)" required />
+        <input type="number" name="quantity_available" placeholder="Total Stock Quantity" required />
+        <label style="font-size: 0.7rem; color: #888;">Product Image URL (IPFS/Gateway)</label>
+        <input type="text" name="img_url" placeholder="https://gateway.pinata.cloud/ipfs/..." required />
+        <button type="submit" class="action-btn">UPDATE LEDGER STOCK</button>
+      </form>
+    </section>
+
+    <!-- Orders Section -->
+    <section id="orders" class="glass-panel active">
+      <h2 style="margin-top:0">📋 Incoming Orders</h2>
+      <div class="table-scroll">
+        <table id="adminOrderTable">
+          <thead>
+            <tr>
+              <th>REF #</th>
+              <th>CUSTOMER</th>
+              <th>ITEMS</th>
+              <th>TOTAL</th>
+              <th>STATUS</th>
+            </tr>
+          </thead>
+          <tbody id="adminOrderBody">
+            <!-- Orders injected here -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Logistics Section -->
+    <section id="delivery" class="glass-panel">
+      <h2 style="margin-top:0">🚚 Delivery Management</h2>
+      <div class="table-scroll">
+        <table id="deliveryTable">
+          <thead>
+            <tr><th>ITEM</th><th>LOCATION</th><th>DATE</th><th>AMOUNT</th><th>ACTION</th></tr>
+          </thead>
+          <tbody>
+            <!-- Logistics items -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Settings Section -->
+    <section id="settings" class="glass-panel">
+      <h2 style="margin-top:0">⚙️ Company Profile</h2>
+      <form id="profileForm">
+        <input type="text" id="compName" placeholder="Company Name" required />
+        <textarea id="compDesc" placeholder="Company Bio/Description..."></textarea>
+        <button type="submit" class="action-btn">SAVE BRANDING</button>
+      </form>
+    </section>
+  </main>
+
+<footer class="shop-footer">
+        <p>&copy; 2026 KHOZA.IO - Management Dashboard</p>
+    </footer>
+
+    <!-- ADD THIS HERE -->
+    <script src="admin-dashboard.js"></script> 
+</body>
+    
+</body>
+</html>

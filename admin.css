@@ -1,0 +1,122 @@
+:root {
+        --glass-bg: rgba(255, 255, 255, 0.6);
+        --glass-border: rgba(255, 255, 255, 0.4);
+        --header-blue: #e3f2fd;
+        --accent-blue: #007bff;
+        --text-main: #212529;
+        --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+    }
+
+    body { 
+        background: #ffffff; 
+        background-image: radial-gradient(circle at 50% 50%, #f8fbff 0%, #ffffff 100%);
+        color: var(--text-main); 
+        font-family: 'Courier New', monospace; 
+        margin: 0; 
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    .shop-header {
+        padding: 15px 5%;
+        background: var(--header-blue);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid #d0e3f0;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .logo { height: 40px; }
+
+    .nav-links a {
+        text-decoration: none;
+        color: var(--accent-blue);
+        font-size: 0.8rem;
+        margin-left: 15px;
+        font-weight: bold;
+    }
+
+    .container { flex: 1; max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+
+    /* Glass Panels */
+    .glass-panel { 
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: var(--shadow);
+        margin-bottom: 25px;
+    }
+
+    .tabs { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; }
+    .tabs button {
+        background: white;
+        border: 1px solid var(--accent-blue);
+        color: var(--accent-blue);
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: inherit;
+        white-space: nowrap;
+    }
+    .tabs button.active { background: var(--accent-blue); color: white; }
+
+    /* Form Styling */
+    input, select, textarea {
+        width: 100%;
+        padding: 12px;
+        margin: 8px 0;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    .action-btn {
+        background: var(--accent-blue);
+        color: white;
+        border: none;
+        padding: 15px;
+        border-radius: 10px;
+        width: 100%;
+        cursor: pointer;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+
+    /* Stats Grid */
+    .sales-tracker-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        border: 1px solid var(--glass-border);
+    }
+    .stat-card h3 { font-size: 0.7rem; color: #888; text-transform: uppercase; margin: 0; }
+    .stat-card p { font-size: 1.5rem; font-weight: bold; color: var(--accent-blue); margin: 5px 0; }
+
+    /* Table Styling */
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.8rem; }
+    th { text-align: left; background: #f0f7ff; padding: 12px; }
+    td { padding: 12px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+
+    section { display: none; }
+    section.active { display: block; }
+
+    @media (max-width: 600px) {
+        .shop-header { flex-direction: column; gap: 10px; }
+        .glass-panel { padding: 15px; }
+    }

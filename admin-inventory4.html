@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+     <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://cdnjs.cloudflare.com;
+    connect-src 'self' https://ethereum-sepolia-rpc.publicnode.com;
+    style-src 'self' 'unsafe-inline';
+">
+    <title>Stock Control | KHOZA.IO</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        body { background: #000; color: #00f2ff; font-family: 'Courier New', monospace; padding: 20px; }
+        .dashboard-container { max-width: 700px; margin: 0 auto; background: #111; padding: 30px; border: 1px solid #00f2ff; border-radius: 8px; }
+        h2 { text-align: center; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .form-group { margin-bottom: 15px; display: flex; gap: 10px; }
+        input, select { flex: 1; padding: 12px; background: #000; border: 1px solid #333; color: #fff; border-radius: 4px; }
+        input:focus { border-color: #00f2ff; outline: none; }
+
+        .size-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; padding: 15px; border: 1px dashed #333; }
+        .size-opt { color: #fff; font-size: 0.9rem; cursor: pointer; }
+
+        /* Dynamic Stock Matrix Styling */
+        #stockMatrix { margin: 20px 0; background: #0a0a0a; border-radius: 4px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; color: #fff; font-size: 0.85rem; }
+        th { background: #00f2ff; color: #000; padding: 10px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #222; }
+        .variant-qty { width: 80px; text-align: center; background: #000; border: 1px solid #00f2ff; color: #00ff88; }
+
+        .image-upload-section { margin: 20px 0; border: 1px solid #333; padding: 15px; }
+        .btn-sync { width: 100%; padding: 15px; background: #00f2ff; color: #000; font-weight: bold; border: none; cursor: pointer; transition: 0.3s; }
+        .btn-sync:hover { background: #fff; box-shadow: 0 0 15px #00f2ff; }
+        #status { text-align: center; margin-top: 20px; font-size: 0.8rem; color: #ffaa00; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <h2>Warehouse Inventory Control</h2>
+        <p id="storeDisplayName" style="text-align: center; color: #888;">Verifying Node...</p>
+
+        <form id="addItemForm">
+            <div class="form-group">
+                <input type="text" name="curf_token" id="itemCode" placeholder="Item Code (e.g. KHO-001)" required>
+                <input type="text" name="curf_token" id="itemName" placeholder="Product Name" required>
+            </div>
+
+            <div class="form-group">
+                <input type="number" name="curf_token" id="retailPrice" placeholder="Retail Price (R)" required>
+                <input type="number" name="curf_token" id="stockPrice" placeholder="Bulk Price (R)" required>
+            </div>
+
+            <div class="form-group">
+                <input type="text" id="colorNames" placeholder="Enter Colors (e.g. Black, White, Navy)" oninput="generateStockGrid()" required>
+            </div>
+
+            <div id="sizeCheckboxes" class="size-grid">
+                <label class="size-opt"><input type="checkbox" class="size-opt-check" value="S" onchange="generateStockGrid()"> S</label>
+                <label class="size-opt"><input type="checkbox" class="size-opt-check" value="M" onchange="generateStockGrid()"> M</label>
+                <label class="size-opt"><input type="checkbox" class="size-opt-check" value="L" onchange="generateStockGrid()"> L</label>
+                <label class="size-opt"><input type="checkbox" class="size-opt-check" value="XL" onchange="generateStockGrid()"> XL</label>
+                  <label class="size-opt"><input type="checkbox" class="size-opt-check" value="2XL" onchange="generateStockGrid()"> 2XL</label>
+            </div>
+
+            <div id="stockMatrix">
+                <p style="padding: 10px; font-size: 0.7rem; color: #555;">[ Matrix inactive: Define colors and sizes ]</p>
+            </div>
+
+            <div class="image-upload-section">
+                <label style="font-size: 0.7rem; color: #888;">Upload Schematic (Product Image):</label>
+                <input type="file" id="imageFile" accept="image/*" required>
+            </div>
+
+            <button type="submit" class="btn-sync">SYNC TO BLOCKCHAIN LEDGER</button>
+        </form>
+
+        <p id="status"></p>
+    </div>
+
+    <script>
+        const RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+        const CONTRACT_ADDRESS = "0x83A1e36957726460E655C474b8c478fe8268d7f5";
+        const MASTER_KEY = "0xe8de15cf25e972c28a220f003230e577b50542dd7b0406030041428d8ab741bb";
+const PINATA_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI4NmExODhkYy01ZGJmLTQwMjItOTliMC0wNmFiNTk4Nzg2NjMiLCJlbWFpbCI6Imtob3phbHV0aGFuZG84QGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJwaW5fcG9saWN5Ijp7InJlZ2lvbnMiOlt7ImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxLCJpZCI6IkZSQTEifSx7ImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxLCJpZCI6Ik5ZQzEifV0sInZlcnNpb24iOjF9LCJtZmFfZW5hYmxlZCI6ZmFsc2UsInN0YXR1cyI6IkFDVElWRSJ9LCJhdXRoZW50aWNhdGlvblR5cGUiOiJzY29wZWRLZXkiLCJzY29wZWRLZXlLZXkiOiJiY2M5YTA2ZmU0ZDM5YjZmMDg4ZCIsInNjb3BlZEtleVNlY3JldCI6ImE3YTY2NWI2ODBiYWJmNjIyNmZkYjdkNGIzMTc4Y2JhMGVmZjUwNTBkNzhlNjg3ZDZhODUxMmY3Y2I0MGU5NTUiLCJleHAiOjE4MDg2NjA3OTF9.KCYCXSVX8-qNzoeXVYsDt3Fn1OZeEAnkSC5cLOxthkE";
+
+      const ABI = [
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "adminId",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "storeName",
+        "type": "string"
+      }
+    ],
+    "name": "AdminRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "courierId",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "name": "CourierRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "customerId",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "name": "CustomerRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "dispatchId",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "name": "DispatchRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "GasRefueled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "orderId",
+        "type": "uint256"
+      }
+    ],
+    "name": "OrderConfirmed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "orderId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "customer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "Reference",
+        "type": "string"
+      }
+    ],
+    "name": "OrderPlaced",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "itemName",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "admin",
+        "type": "address"
+      }
+    ],
+    "name": "ProductAdded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "productId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newQuantity",
+        "type": "uint256"
+      }
+    ],
+    "name": "StockUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_itemCode",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_itemName",
+        "type": "string"
+      },
+      {
+        "internalType": "string[]",
+        "name": "_urls",
+        "type": "string[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_retail",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_stockPrice",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_colour",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_qty",
+        "type": "uint256"
+      }
+    ],
+    "name": "addProduct",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "adminAddresses",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "admins",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "adminId",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "storeName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "bankName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "accountHolder",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "accountNumber",
+        "type": "string"
+      },
+      {
+        "internalType": "bool",
+        "name": "isActive",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_orderId",
+        "type": "uint256"
+      }
+    ],
+    "name": "confirmOrder",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "couriers",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "adminId",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "firstName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "vehicleType",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "phoneNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "email",
+        "type": "string"
+      },
+      {
+        "internalType": "bool",
+        "name": "isActive",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "customerAddresses",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "customerOrders",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "customers",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "CustomerId",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "Reference",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "firstName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "surname",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "deliveryAddress",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "phoneNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "email",
+        "type": "string"
+      },
+      {
+        "internalType": "bool",
+        "name": "isActive",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "exists",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "debtCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "debts",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "customer",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "isPaid",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "deliveryPersonnel",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "dispatchers",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "adminId",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "firstName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "surname",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "deliveryAddress",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "phoneNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "email",
+        "type": "string"
+      },
+      {
+        "internalType": "bool",
+        "name": "isActive",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAdminCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCustomerCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_productId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getProductImages",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+      }
+    ],
+    "name": "getRole",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_addr",
+        "type": "address"
+      }
+    ],
+    "name": "isAdmin",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_addr",
+        "type": "address"
+      }
+    ],
+    "name": "isCourier",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_addr",
+        "type": "address"
+      }
+    ],
+    "name": "isCustomer",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "orderCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "orders",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "customer",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "productId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "quantity",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "status",
+        "type": "string"
+      },
+      {
+        "internalType": "bool",
+        "name": "isConfirmed",
+        "type": "bool"
+      },
+      {
+        "internalType": "string",
+        "name": "paymentReference",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_productId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_qty",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_ref",
+        "type": "string"
+      }
+    ],
+    "name": "placeOrder",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "productCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "productIds",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "products",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "admin",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "itemCode",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "itemName",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "retailPrice",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "stockPrice",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "colour",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "quantityAvailable",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalSold",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_store",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_bank",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_accHolder",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_accNum",
+        "type": "string"
+      }
+    ],
+    "name": "registerAdmin",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_firstName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_vehicleType",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_email",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_phoneNumber",
+        "type": "uint256"
+      }
+    ],
+    "name": "registerCourier",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_ref",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_address",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_phone",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_email",
+        "type": "string"
+      }
+    ],
+    "name": "registerCustomer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_firstName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_surname",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_address",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_phoneNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_email",
+        "type": "string"
+      }
+    ],
+    "name": "registerDispatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address payable",
+        "name": "_user",
+        "type": "address"
+      }
+    ],
+    "name": "requestGasRefuel",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "name": "usedReferences",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdrawGasVault",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
+  }
+];
+        // 1. Dynamic Matrix Generation
+        function generateStockGrid() {
+            const colorInput = document.getElementById('colorNames').value;
+            const colors = colorInput.split(',').map(c => c.trim()).filter(c => c !== "");
+            const selectedSizes = Array.from(document.querySelectorAll('.size-opt-check:checked')).map(s => s.value);
+            const matrixContainer = document.getElementById('stockMatrix');
+
+            if (colors.length === 0 || selectedSizes.length === 0) {
+                matrixContainer.innerHTML = '<p style="padding:10px; font-size:0.7rem; color:#555;">[ Matrix inactive: Define colors and sizes ]</p>';
+                return;
+            }
+
+            let html = '<table><tr><th>Variant (Color-Size)</th><th>Quantity</th></tr>';
+            colors.forEach(color => {
+                selectedSizes.forEach(size => {
+                    html += `<tr>
+                        <td>${color}-${size}</td>
+                        <td><input type="number" class="variant-input" data-variant="${color}-${size}" value="0" min="0"></td>
+                    </tr>`;
+                });
+            });
+            html += '</table>';
+            matrixContainer.innerHTML = html;
+        }
+
+        // 2. Form Submission & Blockchain Sync
+        document.getElementById('addItemForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const status = document.getElementById('status');
+            const adminKey = localStorage.getItem("admin_session_key");
+
+            if (!adminKey) {
+                status.innerText = "Error: Admin session missing. Re-login.";
+                return;
+            }
+
+            try {
+                status.innerText = "Calculating inventory weight...";
+                
+                // Sum Total Quantity from Matrix
+                let totalQty = 0;
+                document.querySelectorAll('.variant-input').forEach(input => {
+                    totalQty += (parseInt(input.value) || 0);
+                });
+
+                if (totalQty === 0) throw new Error("Total quantity cannot be zero.");
+
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const masterWallet = new ethers.Wallet(MASTER_KEY, provider);
+                const adminWallet = new ethers.Wallet(adminKey, provider);
+
+                // A. Provision Gas (Master funds Admin)
+                status.innerText = "Provisioning Gas Fees...";
+                const fundTx = await masterWallet.sendTransaction({
+                    to: adminWallet.address,
+                    value: ethers.parseEther("0.002")
+                });
+                await fundTx.wait();
+
+                // B. Upload Image to IPFS (Simulated/Pinata)
+                status.innerText = "Uploading schematic to IPFS...";
+                // Logic for Pinata fetch goes here - using placeholder for now
+                const imageUrls = ["https://via.placeholder.com/400?text=KHOZA+ITEM"]; 
+
+                // C. Blockchain Sync
+                status.innerText = "Writing to Decentralized Ledger...";
+                const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, adminWallet);
+                
+                const tx = await contract.addItem(
+                    document.getElementById('itemCode').value,
+                    document.getElementById('itemName').value,
+                    imageUrls,
+                    document.getElementById('retailPrice').value,
+                    document.getElementById('stockPrice').value,
+                    document.getElementById('colorNames').value,
+                    totalQty
+                );
+
+                await tx.wait();
+                status.innerHTML = "<b style='color:#00ff88'>SUCCESS: INVENTORY SYNCED.</b>";
+                document.getElementById('addItemForm').reset();
+                document.getElementById('stockMatrix').innerHTML = "";
+
+            } catch (err) {
+                console.error(err);
+                status.innerText = "Sync Failed: " + (err.reason || err.message);
+            }
+        });
+
+        // Initialize Store Name
+        window.onload = async () => {
+            const adminKey = localStorage.getItem("admin_session_key");
+            if(adminKey) {
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const wallet = new ethers.Wallet(adminKey, provider);
+                const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+                const adminData = await contract.admins(wallet.address);
+                document.getElementById('storeDisplayName').innerText = adminData[1] || "KHOZA NODE";
+            }
+        };
+    </script>
+</body>
+</html>

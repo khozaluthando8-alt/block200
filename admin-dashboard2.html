@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; 
+    style-src 'self' 'unsafe-inline'; 
+    connect-src 'self' https://ethereum-sepolia-rpc.publicnode.com https://eth-sepolia.g.alchemy.com;
+    form-action 'self' https://my.payfast.io https://www.payfast.co.za;
+    img-src 'self' data: https://my.payfast.io https://www.payfast.co.za;
+   ">
+    <title>KHOZA Admin | Product Control</title>
+    <link rel="stylesheet" href="style2.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <script src="marketplace-logic.js"></script>
+</head>
+<body class="product-page-body">
+    <header class="shop-header">
+        <h1>KHOZA.IO Control Panel</h1>
+        <button onclick="window.location.href='shop.html'">View Shop</button>
+    </header>
+
+    <main class="product-view-container">
+        <div class="product-glass-layout">
+            <h3>Active Ledger Inventory</h3>
+            <table id="adminTable" style="width:100%; border-collapse: collapse; margin-top:20px;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #00ffcc; text-align: left;">
+                        <th>ID</th>
+                        <th>Product Name</th>
+                        <th>Retail</th>
+                        <th>Stock Price</th>
+                        <th>Stock Level</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryList">
+                    <!-- Row injection -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        async function loadAdminInventory() {
+            const tableBody = document.getElementById('inventoryList');
+            try {
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+                
+                const count = await contract.productCount();
+                let html = "";
+
+                for (let i = 1; i <= count; i++) {
+                    const p = await contract.products(i);
+                    
+                    // Highlight items that are "Deleted" (Stock = 0)
+                    const statusClass = (p.quantityAvailable == 0) ? "style='color: #555;'" : "";
+
+                    html += `
+                        <tr ${statusClass} style="border-bottom: 1px solid #333; height: 50px;">
+                            <td>#${p.id}</td>
+                            <td>${p.itemName}</td>
+                            <td>R${p.retailPrice.toString()}</td>
+                            <td>R${p.stockPrice.toString()}</td>
+                            <td>${p.quantityAvailable.toString()}</td>
+                            <td>
+                                <button onclick="deleteProduct(${p.id})" 
+                                        style="background:red; color:white; border:none; padding:5px 10px; cursor:pointer;"
+                                        ${p.quantityAvailable == 0 ? 'disabled' : ''}>
+                                    REMOVE
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }
+                tableBody.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+                tableBody.innerHTML = "<tr><td colspan='6'>Failed to link with Ledger.</td></tr>";
+            }
+        }
+
+        async function deleteProduct(productId) {
+            if (!confirm("Are you sure you want to remove this item from the Marketplace?")) return;
+
+            try {
+                const userKey = localStorage.getItem("user_session_key");
+                if (!userKey) return alert("Admin Session Key Missing.");
+
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const wallet = new ethers.Wallet(userKey, provider);
+                const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, wallet);[cite: 7]
+
+                console.log(`Deactivating Product #${productId}...`);
+                
+                // We use updateProduct to set quantity to 0 (Soft Delete)
+                // Arguments: id, name, code, stockPrice, retailPrice, quantity, images
+                const p = await contract.products(productId);
+                const images = await contract.getProductImages(productId);
+
+                const tx = await contract.updateProduct(
+                    productId,
+                    p.itemName,
+                    p.itemCode,
+                    p.stockPrice,
+                    p.retailPrice,
+                    0, // Setting quantity to 0 removes it from the shop
+                    images
+                );
+
+                await tx.wait();
+                alert("Product de-listed successfully.");
+                loadAdminInventory(); // Refresh table
+            } catch (err) {
+                console.error(err);
+                alert("Deactivation Failed: Check Ledger connection.");
+            }
+        }
+
+        window.onload = loadAdminInventory;
+    </script>
+</body>
+</html>

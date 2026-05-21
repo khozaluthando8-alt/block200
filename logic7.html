@@ -1,0 +1,102 @@
+<script src="https://unpkg.com/@web3-storage/w3up-client@latest/dist/bundle.js"></script>
+
+<script>
+    let signer;
+    let contract;
+    let client; // web3.storage client
+
+    
+// 1. Configuration - Replace with your details
+const RPC_URL = "https://eth-sepolia.g.alchemy.com/v2/apnIC4FVlS_hAusqPQkDb";
+const PRIVATE_KEY = "0xe8de15cf25e972c28a220f003230e577b50542dd7b0406030041428d8ab741bb"; // Must be funded with testnet ETH
+const CONTRACT_ADDRESS = "0xc08d3869d2C11AadE44962261431B52A186C95E3";
+    // Initialize web3.storage (w3up)
+    async function initWeb3Storage() {
+        const { create } = await window.Web3StorageClient;
+        client = await create();
+        
+        // Note: In a production app, you would handle 'provisioning' here.
+        // For this dashboard, ensure you have run 'w3 login' in your CLI 
+        // and created a space.
+        console.log("Web3.Storage Client Ready");
+    }
+    initWeb3Storage();
+
+    async function connectWallet() {
+        const pk = document.getElementById("privateKey").value;
+        if (!pk) return alert("Enter Private Key!");
+        try {
+            const provider = new ethers.JsonRpcProvider("https://rpc.ankr.com/eth_sepolia");
+            signer = new ethers.Wallet(pk, provider);
+            contract = new ethers.Contract(contractAddress, abi, signer);
+            document.getElementById("walletAddress").innerText = "Connected: " + signer.address;
+            document.getElementById("walletAddress").style.color = "green";
+        } catch (e) { alert("Login Error: " + e.message); }
+    }
+
+    // NEW: Upload using web3.storage
+    async function uploadToIPFS() {
+        const fileInput = document.getElementById('fileInput');
+        if (!fileInput.files[0]) return alert("Select a file first!");
+        
+        const status = document.getElementById('ipfsStatus');
+        status.innerText = "⏳ Hashing & Uploading to web3.storage...";
+        
+        try {
+            // 1. Upload the file
+            // Note: web3.storage .uploadFile returns a link object
+            const cid = await client.uploadFile(fileInput.files[0]);
+            
+            // 2. Set the CID in the image input field for Solidity
+            document.getElementById("image").value = cid.toString();
+            status.innerText = "✅ Success! CID: " + cid.toString();
+        } catch (e) { 
+            console.error(e);
+            status.innerText = "❌ Upload Error: " + e.message; 
+        }
+    }
+
+    async function writeData() {
+        if (!contract) return alert("Connect Wallet first!");
+        const txStatus = document.getElementById("txStatus");
+        txStatus.innerText = "⏳ Sending to Blockchain...";
+
+        try {
+            const tx = await contract.addData(
+                document.getElementById("name").value,
+                document.getElementById("image").value, // Storing the web3.storage CID
+                document.getElementById("price").value,
+                document.getElementById("size").value,
+                document.getElementById("code").value,
+                document.getElementById("colour").value,
+                document.getElementById("id").value
+            );
+            await tx.wait();
+            txStatus.innerText = "✅ Transaction Confirmed!";
+        } catch (e) { txStatus.innerText = "❌ Error: " + e.message; }
+    }
+
+    async function readData() {
+        if (!contract) return alert("Connect Wallet first!");
+        const display = document.getElementById("resultDisplay");
+        display.innerHTML = "⏳ Fetching...";
+
+        try {
+            const data = await contract.list(signer.address);
+            if (!data.isActive) {
+                display.innerHTML = "<em>No record found.</em>";
+                return;
+            }
+
+            // web3.storage files are accessible via standard IPFS gateways
+            const ipfsLink = `https://ipfs.io/ipfs/${data.image}`;
+            display.innerHTML = `
+                <strong>Name:</strong> ${data.name}<br>
+                <strong>ID:</strong> ${data.id}<br>
+                <strong>Price:</strong> ${data.price} Wei<br>
+                <strong>IPFS CID:</strong> <a href="${ipfsLink}" target="_blank">${data.image}</a><br>
+                <img src="${ipfsLink}" alt="Stock Image">
+            `;
+        } catch (e) { display.innerHTML = "❌ Error: " + e.message; }
+    }
+</script>

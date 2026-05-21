@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta http-equiv="Content-Security-Policy" 
+      content="default-src 'self'; 
+               script-src 'self' https://cdnjs.cloudflare.com https://cdn.ethers.io; 
+               connect-src 'self' https://ethereum-sepolia-rpc.publicnode.com https://gateway.pinata.cloud; 
+               img-src 'self' https://gateway.pinata.cloud data:; 
+               style-src 'self' 'unsafe-inline';">
+    <title>Stock Control | KHOZA.IO</title>
+    <link rel="stylesheet" href="style4.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body class="admin-panel">
+    <header style="text-align:center; padding: 20px; color: #00f2ff;">
+        <h2>Store: <span id="storeDisplayName">Verifying...</span></h2>
+    </header>
+
+    <main class="dashboard-container">
+        <form id="addItemForm">
+            <div class="form-group">
+                <input type="text" name="curf_token" id="itemCode" placeholder="Item Code (e.g. TS-001)" required>
+                <input type="text" name="curf_token" id="itemName" placeholder="Product Name" required>
+            </div>
+            <div class="form-group">
+                <input type="text" name="curf_token" id="colorNames" placeholder="Colors (Red, Blue, Green)" required>
+            </div>
+            <div class="form-group" style="display:flex; gap:10px;">
+                <input type="number" id="retailPrice" placeholder="Retail Price" required style="flex:1">
+                <input type="number" id="stockPrice" placeholder="Bulk Price (3+)" required style="flex:1">
+            </div>
+            <div id="sizeCheckboxes" class="size-grid">
+                <label><input type="checkbox" name="curf_token" class="size-opt" value="S"> S</label>
+                <label><input type="checkbox" name="curf_token" class="size-opt" value="M"> M</label>
+                <label><input type="checkbox" name="curf_token" class="size-opt" value="L"> L</label>
+                <label><input type="checkbox" name="curf_token" class="size-opt" value="XL"> XL</label>
+            </div>
+            <input type="number" id="qtyPerSize" placeholder="Quantity Available" required>
+            
+            <div class="image-upload-section">
+                <input type="file" class="product-image-input" name="curf_token" accept="image/*">
+                <input type="file" class="product-image-input" name="curf_token" accept="image/*">
+            </div>
+
+            <button type="submit" style="width:100%; padding:15px; background:#00f2ff; color:#000; font-weight:bold; cursor:pointer; margin-top:20px;">
+                Sync to Blockchain
+            </button>
+        </form>
+    </main>
+
+    <script src="inventory-relay2.js"></script>
+</body>
+</html>

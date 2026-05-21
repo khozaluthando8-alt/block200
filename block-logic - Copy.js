@@ -1,0 +1,84 @@
+let signer;
+let contract;
+
+
+// 1. Configuration - Replace with your details
+const RPC_URL = "https://eth-sepolia.g.alchemy.com/v2/apnIC4FVlS_hAusqPQkDb";
+const PRIVATE_KEY = "0xe8de15cf25e972c28a220f003230e577b50542dd7b0406030041428d8ab741bb"; // Must be funded with testnet ETH
+const CONTRACT_ADDRESS = "0xc08d3869d2C11AadE44962261431B52A186C95E3";
+
+const abi = [
+    "function addData(string _name, string _image, uint256 _price, string _size, string _Item_code, string _colour, uint256 _id) public",
+    "function getMyRecord() public view returns (tuple(string name, string size, string colour, string Item_code, uint256 id, uint256 price, string image, bool isActive))"
+];
+
+// Connect using Private Key
+async function connectWallet() {
+    const pk = document.getElementById("privateKey").value;
+    if (!pk) return alert("Please enter a private key.");
+
+    try {
+        // Connect to Ethereum Testnet (Sepolia)
+        const provider = new ethers.JsonRpcProvider("https://rpc.ankr.com/eth_sepolia");
+        signer = new ethers.Wallet(pk, provider);
+        contract = new ethers.Contract(contractAddress, abi, signer);
+        
+        document.getElementById("walletAddress").innerText = "Logged in as: " + signer.address;
+        document.getElementById("status").innerText = "Connected";
+        document.getElementById("status").style.color = "green";
+    } catch (err) {
+        console.error(err);
+        alert("Login failed. Check your private key and network.");
+    }
+}
+
+// Write/Update Data (Push to Blockchain)
+async function writeData() {
+    if (!contract) return alert("Connect wallet first!");
+
+    const name = document.getElementById("name").value;
+    const image = document.getElementById("image").value;
+    const price = document.getElementById("price").value;
+    const size = document.getElementById("size").value;
+    const code = document.getElementById("code").value;
+    const colour = document.getElementById("colour").value;
+    const id = document.getElementById("id").value;
+
+    try {
+        document.getElementById("status").innerText = "Transaction pending...";
+        // Call the addData function [cite: 4]
+        const tx = await contract.addData(name, image, price, size, code, colour, id);
+        await tx.wait(); // Wait for confirmation
+        document.getElementById("status").innerText = "Update Successful!";
+    } catch (err) {
+        console.error(err);
+        document.getElementById("status").innerText = "Error updating record.";
+    }
+}
+
+// Read Data (Pull from Blockchain)
+async function readData() ```    if (!contract) return alert("Connect wallet first!");
+
+    try {
+        const data = await contract.getMyRecord();
+        
+        if (!data.isActive) {
+            document.getElementById("result").innerText = "No data found for this address.";
+            return;
+        }
+
+        // Displaying the retrieved struct [cite: 2]
+        document.getElementById("result").innerHTML = `
+            <strong>Name:</strong> ${data.name}<br>
+            <strong>ID:</strong> ${data.id}<br>
+            <strong>Price:</strong> ${data.price}<br>
+            <strong>Size:</strong> ${data.size}<br>
+            <strong>Color:</strong> ${data.colour}<br>
+            <strong>Code:</strong> ${data.Item_code}<br>
+            <img src="${data.image}" style="max-width: 150px; display:block; margin-top:10px;">
+        `;
+    } catch (err) {
+        console.error(err);
+        alert("Error fetching data.");
+    }
+}

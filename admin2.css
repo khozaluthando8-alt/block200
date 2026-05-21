@@ -1,0 +1,6 @@
+ body { background: #000; color: #00f2ff; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: #111; padding: 2rem; border: 1px solid #00f2ff; width: 420px; box-shadow: 0 0 20px rgba(0,242,255,0.2); border-radius: 5px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; background: #000; border: 1px solid #333; color: #fff; box-sizing: border-box; }
+        .id-display { background: #003333; color: #00f2ff; padding: 10px; border: 1px dashed #00f2ff; margin: 15px 0; font-size: 0.8rem; word-break: break-all; display: none; }
+        button { width: 100%; padding: 12px; background: #00f2ff; border: none; color: #000; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
+        label { font-size: 0.7rem; color: #888; text-transform: uppercase; }

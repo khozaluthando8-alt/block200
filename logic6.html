@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Web3 Storage Inventory</title>
+
+  <!-- ethers -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <style>
+    body { font-family: Arial; background:#0f172a; color:white; }
+    .card { background:#1e293b; padding:15px; margin:10px; border-radius:10px; }
+    button { padding:10px; margin:5px; }
+    img { width:120px; border-radius:10px; }
+  </style>
+</head>
+
+<body>
+
+<h2>🚀 Web3 Storage + Solidity Inventory</h2>
+
+<!-- 🔐 Wallet -->
+<div class="card">
+  <input id="pk" placeholder="Private Key">
+  <button onclick="connect()">Connect</button>
+  <p id="wallet"></p>
+</div>
+
+<!-- 📦 Upload -->
+<div class="card">
+  <input id="name" placeholder="Item Name">
+  <input type="file" id="file">
+  <button onclick="addItem()">Upload & Save</button>
+  <p id="status"></p>
+</div>
+
+<!-- 📊 Items -->
+<div class="card">
+  <button onclick="loadItems()">Load Items</button>
+  <div id="items"></div>
+</div>
+
+<!-- Web3.Storage -->
+<script type="module">
+import { Web3Storage } from "https://unpkg.com/web3.storage/dist/bundle.esm.min.js";
+
+window.Web3Storage = Web3Storage;
+</script>
+
+<script>
+
+// 🔗 CONFIG
+const RPC = "https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY";
+const CONTRACT = "YOUR_CONTRACT_ADDRESS";
+const WEB3_TOKEN = "YOUR_WEB3STORAGE_TOKEN";
+
+// ABI
+const abi = [
+ "function addItem(string,string)",
+ "function getItem(uint256) view returns (tuple(string name,string cid))",
+ "function getTotalItems() view returns (uint256)"
+];
+
+let wallet, contract;
+
+// 🔐 Connect
+function connect(){
+  const pk = document.getElementById("pk").value;
+
+  wallet = new ethers.Wallet(pk, new ethers.providers.JsonRpcProvider(RPC));
+  contract = new ethers.Contract(CONTRACT, abi, wallet);
+
+  document.getElementById("wallet").innerText =
+    "Connected: " + wallet.address;
+}
+
+// 📦 Upload to IPFS (Web3.Storage)
+async function uploadToIPFS(file){
+  const client = new window.Web3Storage({ token: WEB3_TOKEN });
+
+  const cid = await client.put([file]);
+
+  return cid;
+}
+
+// ➕ Add Item
+async function addItem(){
+  try{
+    const name = document.getElementById("name").value;
+    const file = document.getElementById("file").files[0];
+
+    if(!name || !file) throw new Error("Missing fields");
+
+    document.getElementById("status").innerText = "Uploading to IPFS...";
+
+    const cid = await uploadToIPFS(file);
+
+    document.getElementById("status").innerText = "Saving to blockchain...";
+
+    const tx = await contract.addItem(name, cid);
+    await tx.wait();
+
+    document.getElementById("status").innerText = "✅ Saved!";
+    loadItems();
+
+  }catch(e){
+    document.getElementById("status").innerText = "❌ " + e.message;
+    console.error(e);
+  }
+}
+
+// 📥 Load Items
+async function loadItems(){
+
+  const read = new ethers.Contract(
+    CONTRACT,
+    abi,
+    new ethers.providers.JsonRpcProvider(RPC)
+  );
+
+  const total = await read.getTotalItems();
+
+  let html = "";
+
+  for(let i=0;i<total;i++){
+    const item = await read.getItem(i);
+
+    html += `
+      <div class="card">
+        <h4>${item.name}</h4>
+        <img src="https://ipfs.io/ipfs/${item.cid}">
+        <p>${item.cid}</p>
+      </div>
+    `;
+  }
+
+  document.getElementById("items").innerHTML = html;
+}
+
+</script>
+
+</body>
+</html>

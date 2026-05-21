@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+     <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://cdnjs.cloudflare.com;
+    connect-src 'self' https://ethereum-sepolia-rpc.publicnode.com;
+    style-src 'self' 'unsafe-inline';
+">
+    <title>Sales Intelligence | KHOZA.IO</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        :root { --neon-blue: #00f2ff; --neon-green: #00ff88; --neon-orange: #ffaa00; }
+        body { background: #000; color: var(--neon-blue); font-family: 'Courier New', monospace; padding: 20px; }
+        .container { max-width: 1100px; margin: 0 auto; background: #0a0a0a; border: 1px solid var(--neon-blue); padding: 25px; border-radius: 8px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 15px; margin-bottom: 25px; }
+        h1 { margin: 0; text-transform: uppercase; font-size: 1.5rem; letter-spacing: 3px; }
+        
+        /* Stats Dashboard */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }
+        .stat-card { background: #111; border: 1px solid #222; padding: 20px; text-align: center; position: relative; }
+        .stat-card.alert { border-color: var(--neon-orange); box-shadow: 0 0 10px rgba(255, 170, 0, 0.1); }
+        .stat-label { font-size: 0.7rem; color: #888; display: block; margin-bottom: 5px; }
+        .stat-value { font-size: 1.8rem; font-weight: bold; color: #fff; }
+
+        /* Tables */
+        h2 { font-size: 1rem; text-transform: uppercase; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .table-container { margin-bottom: 50px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; background: #050505; }
+        th { background: #111; color: var(--neon-blue); text-align: left; padding: 12px; font-size: 0.8rem; border-bottom: 1px solid #333; }
+        td { padding: 12px; border-bottom: 1px solid #111; font-size: 0.85rem; color: #ccc; }
+        tr:hover { background: #0f0f0f; }
+
+        /* Buttons & Badges */
+        .btn-confirm { background: var(--neon-orange); color: #000; border: none; padding: 6px 12px; font-weight: bold; cursor: pointer; border-radius: 3px; font-family: 'Courier New'; }
+        .btn-confirm:hover { background: #fff; box-shadow: 0 0 10px var(--neon-orange); }
+        .status-pill { padding: 3px 8px; border-radius: 2px; font-size: 0.7rem; font-weight: bold; }
+        .status-pending { background: rgba(255,170,0,0.2); color: var(--neon-orange); border: 1px solid var(--neon-orange); }
+        .status-shipped { background: rgba(0,255,136,0.2); color: var(--neon-green); border: 1px solid var(--neon-green); }
+        .refresh-btn { background: var(--neon-blue); color: #000; border: none; padding: 8px 20px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Sales Ledger Terminal</h1>
+        <button class="refresh-btn" onclick="syncWithBlockchain()">SYNC DATA</button>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card alert">
+            <span class="stat-label">Pending Orders</span>
+            <span class="stat-value" id="pendingCount">0</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Total Revenue</span>
+            <span class="stat-value" id="totalRev">R 0</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Completed Units</span>
+            <span class="stat-value" id="unitsCount">0</span>
+        </div>
+    </div>
+
+    <h2><span style="color:var(--neon-orange)">●</span> Incoming Orders (Action Required)</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Ref ID</th>
+                    <th>Product Name</th>
+                    <th>Qty</th>
+                    <th>Buyer Node</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="incomingTable">
+                <tr><td colspan="5" style="text-align:center; padding: 40px;">No incoming signals...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2><span style="color:var(--neon-green)">●</span> Confirmed Sales History</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Ref ID</th>
+                    <th>Product</th>
+                    <th>Earnings</th>
+                    <th>Status</th>
+                    <th>Date Confirmed</th>
+                </tr>
+            </thead>
+            <tbody id="historyTable">
+                <tr><td colspan="5" style="text-align:center; padding: 40px;">Scanning ledger history...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+    const CONTRACT_ADDRESS = "0x2139e2C85cbD38cCf774D624604d73ff42552fc7";
+    const ABI = [
+        "function orderCount() public view returns (uint256)",
+        "function orders(uint256) public view returns (uint256 id, uint256 productId, address buyer, uint256 quantity, string reference, string status, uint256 timestamp)",
+        "function products(uint256) public view returns (uint256 id, address admin, string itemCode, string itemName, uint256 retailPrice)",
+        "function updateOrderStatus(uint256 _orderId, string memory _newStatus) public"
+    ];
+
+    async function syncWithBlockchain() {
+        const incomingTable = document.getElementById('incomingTable');
+        const historyTable = document.getElementById('historyTable');
+        const adminKey = localStorage.getItem("admin_session_key");
+
+        if (!adminKey) {
+            alert("ADMIN_KEY NOT FOUND. SESSION EXPIRED.");
+            return;
+        }
+
+        try {
+            const provider = new ethers.JsonRpcProvider(RPC_URL);
+            const wallet = new ethers.Wallet(adminKey, provider);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+            
+            const count = await contract.orderCount();
+            
+            let incomingHtml = "";
+            let historyHtml = "";
+            let stats = { pending: 0, revenue: 0, units: 0 };
+
+            // Scan orders backwards (newest first)
+            for (let i = count; i >= 1; i--) {
+                const order = await contract.orders(i);
+                const product = await contract.products(order.productId);
+
+                // Filter: Only show orders belonging to this store
+                if (product.admin.toLowerCase() !== wallet.address.toLowerCase()) continue;
+
+                if (order.status === "Pending") {
+                    stats.pending++;
+                    incomingHtml += `
+                        <tr>
+                            <td>${order.reference}</td>
+                            <td>${product.itemName}</td>
+                            <td>${order.quantity}</td>
+                            <td>${order.buyer.substring(0, 10)}...</td>
+                            <td><button class="btn-confirm" onclick="confirmShipment(${i})">CONFIRM SHIPMENT</button></td>
+                        </tr>
+                    `;
+                } else {
+                    const lineTotal = Number(product.retailPrice) * Number(order.quantity);
+                    stats.revenue += lineTotal;
+                    stats.units += Number(order.quantity);
+                    
+                    historyHtml += `
+                        <tr>
+                            <td>${order.reference}</td>
+                            <td>${product.itemName}</td>
+                            <td>R ${lineTotal.toLocaleString()}</td>
+                            <td><span class="status-pill status-shipped">${order.status}</span></td>
+                            <td style="color:#555">${new Date(Number(order.timestamp) * 1000).toLocaleDateString()}</td>
+                        </tr>
+                    `;
+                }
+            }
+
+            incomingTable.innerHTML = incomingHtml || "<tr><td colspan='5' style='text-align:center;'>No pending actions.</td></tr>";
+            historyTable.innerHTML = historyHtml || "<tr><td colspan='5' style='text-align:center;'>No history recorded.</td></tr>";
+            
+            document.getElementById('pendingCount').innerText = stats.pending;
+            document.getElementById('totalRev').innerText = `R ${stats.revenue.toLocaleString()}`;
+            document.getElementById('unitsCount').innerText = stats.units;
+
+        } catch (err) {
+            console.error("Ledger Sync Error:", err);
+            alert("Failed to sync with Blockchain. Check connection.");
+        }
+    }
+
+    async function confirmShipment(orderId) {
+        const adminKey = localStorage.getItem("admin_session_key");
+        try {
+            const provider = new ethers.JsonRpcProvider(RPC_URL);
+            const wallet = new ethers.Wallet(adminKey, provider);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, wallet);
+
+            console.log("Confirming order ID:", orderId);
+            const tx = await contract.updateOrderStatus(orderId, "Shipped");
+            
+            document.getElementById('incomingTable').innerHTML = "<tr><td colspan='5' style='text-align:center; color:var(--neon-orange)'>Broadcasting shipment update to network...</td></tr>";
+            
+            await tx.wait();
+            alert("Order confirmed and moved to history.");
+            syncWithBlockchain();
+        } catch (err) {
+            console.error(err);
+            alert("Transaction failed: " + (err.reason || "Insufficient Gas"));
+            syncWithBlockchain();
+        }
+    }
+
+    window.onload = syncWithBlockchain;
+</script>
+
+</body>
+</html>
